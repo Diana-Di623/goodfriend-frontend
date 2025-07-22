@@ -5,7 +5,9 @@
       <view class="slogan">{{ slogans[currentSlogan] }}</view>
       <view class="avatar-group" @click="goProfile">
         <image class="avatar-img" src="/static/logo.png" />
-        <view class="avatar-tip">点击进入个人档案</view>
+        <view v-if="isLoggedIn && currentUserInfo.nickname" class="user-info">
+          <text class="user-nickname">{{ currentUserInfo.nickname }}</text>
+        </view>
       </view>
     </view>
 
@@ -17,14 +19,9 @@
           <text>专业团队</text>
           <text class="badge">认证心理咨询师在线支持</text>
         </view>
-        <scroll-view 
-          scroll-y 
-          :scroll-top="scrollTop" 
-          :scroll-with-animation="false"
-          class="counselor-scroll"
-        >
+        <view class="counselor-scroll">
           <view class="counselor-container">
-            <view v-for="(counselor, idx) in counselors" :key="idx" class="counselor-card">
+            <view v-for="(counselor, idx) in visibleCounselors" :key="idx" class="counselor-card" @click="handleCounselorClick(counselor)">
               <image class="counselor-avatar" :src="counselor.avatar" />
               <view class="counselor-info">
                 <view class="counselor-name">{{ counselor.name }} <text class="level">{{ counselor.level }}</text></view>
@@ -37,11 +34,11 @@
               </view>
             </view>
           </view>
-        </scroll-view>
+        </view>
       </view>
 
       <!-- 心理测评卡片 -->
-      <view class="test-card" @click="goTest">
+      <view class="test-card" @click="handleTestClick">
         <view class="test-title">专业心理测评</view>
         <view class="test-desc">5分钟快速了解你的心理状态</view>
         <view class="test-footer">
@@ -57,7 +54,7 @@
           <text>心理推文</text>
         </view>
         <scroll-view scroll-x class="article-list">
-          <view v-for="(article, idx) in articles" :key="idx" class="article-card">
+          <view v-for="(article, idx) in articles" :key="idx" class="article-card" @click="handleArticleClick(article)">
             <view class="article-title">{{ article }}</view>
             <view class="article-desc">点击阅读全文</view>
           </view>
@@ -74,7 +71,7 @@
           </view>
         </view>
         <view class="wish-desc">在这里分享你的心情，倾听他人的故事</view>
-        <button class="wish-btn" @click="unreadMessageCount = 0">写下/查看心愿</button>
+        <button class="wish-btn" @click="handleWishClick">写下/查看心愿</button>
       </view>
     </view>
 
@@ -88,11 +85,49 @@
     <button class="refresh-btn" @click="handleRefresh">
       <text class="icon-refresh"></text>
     </button>
+
+    <!-- 登录弹窗 -->
+    <view v-if="showLoginModal" class="login-modal">
+      <view class="login-overlay" @click="closeLogin"></view>
+      <view class="login-content">
+        <!-- 头部 -->
+        <view class="login-header">
+          <text class="login-title">会员登录</text>
+        </view>
+
+        <!-- Logo区域 -->
+        <view class="logo-section">
+          <view class="logo-container">
+            <image class="app-logo" src="/static/logo.png" />
+            <text class="app-name">好朋友心理</text>
+          </view>
+        </view>
+
+        <!-- 底部操作区 -->
+        <view class="login-bottom">
+          <!-- 用户协议 -->
+          <view class="terms-section" @click="toggleTerms">
+            <checkbox :checked="termsAccepted" class="terms-checkbox" />
+            <text class="terms-text">我同意好朋友心理服务条款与隐私政策</text>
+          </view>
+
+          <!-- 登录按钮 -->
+          <button class="login-btn" @click="goToLoginPage">
+            手机号快捷登录
+          </button>
+
+          <!-- 先逛一逛 -->
+          <button class="browse-btn" @click="handleBrowse">
+            先逛一逛
+          </button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 
 const currentSlogan = ref(0)
 const hasNewMessage = ref(true)
@@ -100,6 +135,11 @@ const unreadMessageCount = ref(15) // 未读消息数量
 const isRefreshing = ref(false)
 const scrollTop = ref(0) // 竖向滚动位置
 const currentPage = ref(0) // 当前页
+const showLoginModal = ref(true) // 显示登录弹窗（进入页面立即显示）
+const termsAccepted = ref(false) // 用户协议同意状态
+const isLoggedIn = ref(false) // 用户登录状态
+const counselorIndex = ref(0) // 当前显示的咨询师起始索引
+const currentUserInfo = ref({}) // 当前用户信息
 
 const slogans = [
   '每个情绪都值得被倾听',
@@ -110,7 +150,7 @@ const slogans = [
 const counselors = [
   {
     name: '牢陈头',
-    level: '高级咨询师',
+    level: '低级咨询师',
     specialty: '焦虑抑郁',
     gender: '男',
     location: '连州',
@@ -224,30 +264,45 @@ const articles = [
   '考试焦虑应对指南'
 ]
 
+// 计算属性：获取当前显示的3个咨询师
+const visibleCounselors = computed(() => {
+  const startIndex = counselorIndex.value
+  const result = []
+  for (let i = 0; i < 3; i++) {
+    const index = (startIndex + i) % counselors.length
+    result.push(counselors[index])
+  }
+  return result
+})
+
 let interval = null
 let scrollInterval = null
 
 onMounted(() => {
+  // 检查登录状态
+  const token = uni.getStorageSync('token')
+  const userInfo = uni.getStorageSync('userInfo')
+  
+  if (token && userInfo) {
+    isLoggedIn.value = true
+    currentUserInfo.value = userInfo
+    showLoginModal.value = false
+  } else {
+    // 每次进入小程序都清除登录状态，要求重新登录
+    uni.removeStorageSync('token')
+    uni.removeStorageSync('userInfo')
+    isLoggedIn.value = false
+    showLoginModal.value = true
+  }
+  
   // 标语轮播
   interval = setInterval(() => {
     currentSlogan.value = (currentSlogan.value + 1) % slogans.length
   }, 3000)
   
-  // 咨询师列表自动滚动
+  // 咨询师列表自动切换（每3秒切换到下一组3个咨询师）
   scrollInterval = setInterval(() => {
-    // 平滑的增量滚动，避免闪屏
-    const cardHeight = 98 // 每个卡片的实际高度
-    const currentScroll = scrollTop.value + cardHeight
-    
-    // 计算最大滚动距离，确保能滚动到所有咨询师
-    const maxScroll = (counselors.length - 4) * cardHeight
-    
-    if (currentScroll >= maxScroll) {
-      // 直接重置到顶部，不延迟
-      scrollTop.value = 0
-    } else {
-      scrollTop.value = currentScroll
-    }
+    counselorIndex.value = (counselorIndex.value + 3) % counselors.length
   }, 3000)
 })
 
@@ -260,13 +315,144 @@ function handleRefresh() {
   isRefreshing.value = true
   setTimeout(() => {
     isRefreshing.value = false
-  }, 300)
+  }, 1000)
 }
 function goProfile() {
-  // 跳转到个人档案页
+  // 检查是否已登录
+  const token = uni.getStorageSync('token')
+  if (!token) {
+    // 未登录，跳转到登录页面
+    uni.navigateTo({
+      url: '/pages/login/login'
+    })
+    return
+  }
+
+  // 已登录，直接跳转到个人资料页面
+  uni.navigateTo({
+    url: '/pages/profile/profile'
+  })
+}
+
+// 退出登录
+function logout() {
+  uni.showModal({
+    title: '确认退出',
+    content: '确定要退出登录吗？',
+    success: (res) => {
+      if (res.confirm) {
+        isLoggedIn.value = false
+        uni.removeStorageSync('token')
+        uni.removeStorageSync('userInfo')
+        uni.showToast({
+          title: '已退出登录',
+          icon: 'success',
+          duration: 1500
+        })
+      }
+    }
+  })
 }
 function goTest() {
   // 跳转到心理测评页
+}
+
+// 检查登录状态的通用函数
+function checkLoginAndShowModal(action) {
+  // 检查是否有有效的登录token
+  const token = uni.getStorageSync('token')
+  if (!token || !isLoggedIn.value) {
+    showLoginModal.value = true
+    uni.showToast({
+      title: '需要会员登录才能使用此功能',
+      icon: 'none',
+      duration: 2000
+    })
+    return false
+  }
+  return true
+}
+
+// 咨询师点击处理
+function handleCounselorClick(counselor) {
+  if (checkLoginAndShowModal('咨询师服务')) {
+    // 这里处理咨询师相关逻辑
+    console.log('点击了咨询师:', counselor.name)
+  }
+}
+
+// 心理测评点击处理
+function handleTestClick() {
+  if (checkLoginAndShowModal('心理测评')) {
+    goTest()
+  }
+}
+
+// 心理推文点击处理
+function handleArticleClick(article) {
+  if (checkLoginAndShowModal('心理推文')) {
+    // 这里处理推文相关逻辑
+    console.log('点击了推文:', article)
+  }
+}
+
+// 心愿心语点击处理
+function handleWishClick() {
+  if (checkLoginAndShowModal('心愿心语')) {
+    // 这里处理心愿心语相关逻辑
+    unreadMessageCount.value = 0
+    console.log('点击了心愿心语')
+  }
+}
+
+// 登录相关函数
+function toggleTerms() {
+  termsAccepted.value = !termsAccepted.value
+}
+
+// 跳转到登录页面
+function goToLoginPage() {
+  if (!termsAccepted.value) {
+    uni.showToast({
+      title: '请先同意服务条款',
+      icon: 'none',
+      duration: 1500
+    })
+    return
+  }
+  
+  uni.navigateTo({
+    url: '/pages/login/login',
+    success: () => {
+      // 跳转成功后关闭当前登录弹窗
+      showLoginModal.value = false
+    }
+  })
+}
+
+function handleBrowse() {
+  // 检查是否同意协议
+  if (!termsAccepted.value) {
+    uni.showToast({
+      title: '请先同意服务条款',
+      icon: 'none',
+      duration: 1280  // 这里控制显示时间，单位是毫秒
+    })
+    return
+  }
+  // 同意协议后才能先逛一逛，关闭登录弹窗，但不设置为已登录状态
+  // 用户仍然需要登录才能使用各项功能
+  showLoginModal.value = false
+  isLoggedIn.value = false  // 确保未登录状态
+  uni.showToast({
+    title: '欢迎访问，使用功能需要会员登录',
+    icon: 'none',
+    duration: 2000
+  })
+}
+
+function closeLogin() {
+  showLoginModal.value = false
 }
 </script>
 
@@ -275,16 +461,16 @@ function goTest() {
 .bg-gradient { background: linear-gradient(135deg, #fce4ec 0%, #e3f2fd 50%, #ede7f6 100%); min-height: 100vh; }
 .header { display: flex; align-items: center; justify-content: space-between; padding: 24rpx; background: rgba(255,255,255,0.8); border-bottom: 1px solid #f8bbd0; }
 .slogan { font-size: 32rpx; color: #666; }
-.avatar-group { position: relative; }
+.avatar-group { position: relative; display: flex; align-items: center; gap: 12rpx; }
 .avatar-img { width: 96rpx; height: 96rpx; border-radius: 50%; border: 2rpx solid #f8bbd0; }
-.avatar-tip { position: absolute; bottom: -40rpx; right: 0; background: #333; color: #fff; font-size: 20rpx; padding: 4rpx 12rpx; border-radius: 8rpx; opacity: 0; transition: opacity 0.3s; }
-.avatar-group:hover .avatar-tip { opacity: 1; }
+.user-info { display: flex; flex-direction: column; }
+.user-nickname { font-size: 24rpx; color: #333; font-weight: 500; }
 .main-content { padding: 32rpx 24rpx; }
 .section { margin-bottom: 32rpx; }
 .section-title { display: flex; align-items: center; gap: 12rpx; font-size: 28rpx; font-weight: bold; color: #333; margin-bottom: 16rpx; }
 .badge { background: #fce4ec; color: #d81b60; font-size: 20rpx; border-radius: 8rpx; padding: 2rpx 10rpx; }
-.counselor-scroll { width: 100%; height: 284rpx; overflow-y: auto; }
-.counselor-container { display: flex; flex-direction: column; padding-bottom: 16rpx; }
+.counselor-scroll { width: 100%; height: auto; overflow: hidden; }
+.counselor-container { display: flex; flex-direction: column; gap: 16rpx; }
 .counselor-card { 
   display: flex; 
   flex-direction: row;
@@ -294,6 +480,8 @@ function goTest() {
   padding: 16rpx; 
   box-shadow: 0 2rpx 8rpx #f8bbd0; 
   width: 100%;
+  min-height: 80rpx;
+  margin-bottom: 0;
 }
 .counselor-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; margin-right: 16rpx; }
 .counselor-info { flex: 1; text-align: left; }
@@ -337,4 +525,92 @@ function goTest() {
 .icon-heart::before { content: "♥"; color: #ec407a; margin-right: 4rpx; }
 .icon-message::before { content: "💬"; color: #42a5f5; margin-right: 4rpx; }
 .icon-refresh::before { content: "⟳"; color: #fff; margin-right: 4rpx; }
+
+/* 登录弹窗样式 */
+.login-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000; }
+.login-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); }
+.login-content { 
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  right: 0; 
+  bottom: 0; 
+  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 50%, #fce4ec 100%); 
+  display: flex; 
+  flex-direction: column; 
+  max-width: 750rpx; 
+  margin: 0 auto;
+}
+.login-header { 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  padding: 32rpx 24rpx; 
+  background: #fff; 
+}
+.login-title { font-size: 36rpx; font-weight: 500; color: #333; }
+.logo-section { 
+  flex: 1; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  padding: 64rpx 0; 
+}
+.logo-container { 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  justify-content: center; 
+  text-align: center; 
+}
+.app-logo { 
+  width: 240rpx; 
+  height: 240rpx; 
+  border-radius: 24rpx; 
+  margin-bottom: 32rpx; 
+  display: block;
+}
+.app-name { 
+  font-size: 48rpx; 
+  font-weight: bold; 
+  color: #333; 
+  letter-spacing: 4rpx; 
+  text-align: center;
+}
+.login-bottom { padding: 0 48rpx 64rpx; }
+.terms-section { 
+  display: flex; 
+  align-items: flex-start; 
+  margin-bottom: 32rpx; 
+  gap: 16rpx; 
+}
+.terms-checkbox { margin-top: 8rpx; }
+.terms-text { 
+  font-size: 28rpx; 
+  color: #666; 
+  line-height: 1.5; 
+  flex: 1; 
+}
+.login-btn { 
+  width: 100%; 
+  background: #ffeb3b; 
+  color: #333; 
+  font-size: 32rpx; 
+  font-weight: 500; 
+  border-radius: 48rpx; 
+  padding: 32rpx 0; 
+  border: none; 
+  margin-bottom: 32rpx; 
+}
+.login-btn:hover { background: #fdd835; }
+.browse-btn { 
+  width: 100%; 
+  background: transparent; 
+  color: #666; 
+  font-size: 32rpx; 
+  border: 2rpx solid #ddd; 
+  border-radius: 48rpx; 
+  padding: 24rpx 0; 
+}
+.browse-btn:hover { background: #f5f5f5; }
 </style>
