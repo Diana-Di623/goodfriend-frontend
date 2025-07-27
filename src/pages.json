@@ -27,6 +27,34 @@
 				"navigationBarTitleText": "完善个人信息",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/counselor/detail",
+			"style": {
+				"navigationBarTitleText": "咨询师详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/test/sds",
+			"style": {
+				"navigationBarTitleText": "抑郁自评量表",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/test/sas",
+			"style": {
+				"navigationBarTitleText": "焦虑自评量表",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/test/results",
+			"style": {
+				"navigationBarTitleText": "测评结果",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"globalStyle": {

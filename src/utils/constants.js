@@ -2,16 +2,18 @@
  * 个人信息相关常量
  */
 
-// 性别选项 - 只提供男女两个选项
+// 性别选项 - 提供男女和未知选项来保护隐私
 export const GENDER_OPTIONS = [
   { label: '男', value: '男' },
-  { label: '女', value: '女' }
+  { label: '女', value: '女' },
+  { label: '未知', value: '未知' }
 ]
 
 // 性别枚举
 export const GENDER = {
   MALE: '男',
-  FEMALE: '女'
+  FEMALE: '女',
+  UNKNOWN: '未知'
 }
 
 // 生日相关配置
@@ -48,7 +50,7 @@ export const REGION_OPTIONS = [
 
 // 验证性别是否有效
 export function isValidGender(gender) {
-  return gender === GENDER.MALE || gender === GENDER.FEMALE
+  return gender === GENDER.MALE || gender === GENDER.FEMALE || gender === GENDER.UNKNOWN
 }
 
 // 获取性别显示文本

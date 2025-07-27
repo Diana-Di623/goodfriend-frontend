@@ -37,6 +37,13 @@
           >
             <text class="gender-text">女</text>
           </view>
+          <view 
+            class="gender-option" 
+            :class="{ active: userInfo.gender === '未知' }"
+            @click="selectGender('未知')"
+          >
+            <text class="gender-text">未知</text>
+          </view>
         </view>
       </view>
 
@@ -108,6 +115,22 @@
       <button class="skip-btn" @click="skipProfile">
         暂时跳过
       </button>
+    </view>
+
+    <!-- 底部导航栏 -->
+    <view class="bottom-nav">
+      <view class="nav-item" @click="goHome">
+        <text class="nav-icon">🏠</text>
+        <text class="nav-label">首页</text>
+      </view>
+      <view class="nav-item" @click="handleWishClick">
+        <text class="nav-icon">💭</text>
+        <text class="nav-label">心愿心语</text>
+      </view>
+      <view class="nav-item active">
+        <text class="nav-icon">👤</text>
+        <text class="nav-label">个人中心</text>
+      </view>
     </view>
   </view>
 </template>
@@ -319,12 +342,41 @@ function skipProfile() {
     }
   })
 }
+
+// 首页导航
+function goHome() {
+  uni.reLaunch({
+    url: '/pages/index/index'
+  })
+}
+
+// 心愿心语导航
+function handleWishClick() {
+  // 检查登录状态
+  const token = uni.getStorageSync('token')
+  if (!token) {
+    uni.showToast({
+      title: '需要会员登录才能使用此功能',
+      icon: 'none',
+      duration: 2000
+    })
+    return
+  }
+  
+  // 这里处理心愿心语相关逻辑
+  uni.showToast({
+    title: '心愿心语功能开发中',
+    icon: 'none',
+    duration: 2000
+  })
+}
 </script>
 
 <style scoped>
 .complete-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 50%, #fce4ec 100%);
+  padding-bottom: 120rpx; /* 为底部导航栏留出空间 */
 }
 
 .header {
@@ -335,18 +387,20 @@ function skipProfile() {
 }
 
 .title {
-  font-size: 36rpx;
-  font-weight: bold;
+  font-size: 36rpx; /* 大号字体 */
+  font-weight: 600;
   color: #333;
   display: block;
   margin-bottom: 16rpx;
+  letter-spacing: 1rpx;
 }
 
 .subtitle {
-  font-size: 26rpx;
+  font-size: 28rpx; /* 中号字体 */
   color: #666;
-  line-height: 1.4;
+  line-height: 1.5;
   display: block;
+  font-weight: 400;
 }
 
 .form-section {
@@ -358,11 +412,12 @@ function skipProfile() {
 }
 
 .input-label {
-  font-size: 28rpx;
+  font-size: 28rpx; /* 中号字体 */
   color: #333;
   margin-bottom: 12rpx;
   font-weight: 500;
   display: block;
+  letter-spacing: 0.5rpx;
 }
 
 .form-input {
@@ -371,9 +426,11 @@ function skipProfile() {
   padding: 0 24rpx;
   border: 2rpx solid #e0e0e0;
   border-radius: 12rpx;
-  font-size: 30rpx;
+  font-size: 28rpx; /* 中号字体 */
   background: #fff;
   box-sizing: border-box;
+  color: #333;
+  font-weight: 400;
 }
 
 .form-input:focus {
@@ -387,22 +444,26 @@ function skipProfile() {
   padding: 0 24rpx;
   border: 2rpx solid #e0e0e0;
   border-radius: 12rpx;
-  font-size: 30rpx;
+  font-size: 28rpx; /* 中号字体 */
   background: #fff;
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  color: #333;
+  font-weight: 400;
 }
 
 .picker-field .placeholder {
   color: #999;
+  font-weight: 400;
 }
 
 .picker-arrow {
   color: #999;
-  font-size: 24rpx;
+  font-size: 20rpx; /* 小号字体 */
   margin-left: 16rpx;
+  font-weight: 400;
 }
 
 .gender-container {
@@ -429,13 +490,15 @@ function skipProfile() {
 }
 
 .gender-text {
-  font-size: 30rpx;
+  font-size: 28rpx; /* 中号字体 */
   color: #333;
+  font-weight: 500;
+  letter-spacing: 0.5rpx;
 }
 
 .gender-option.active .gender-text {
   color: #42a5f5;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .bottom-section {
@@ -448,30 +511,91 @@ function skipProfile() {
 .complete-btn {
   width: 100%;
   height: 88rpx;
-  background: linear-gradient(90deg, #42a5f5, #1976d2);
+  background: linear-gradient(90deg, #1ba7d0, #4bc3b2);
   color: #fff;
-  font-size: 32rpx;
-  font-weight: 500;
+  font-size: 36rpx; /* 大号字体 */
+  font-weight: 600;
   border-radius: 44rpx;
   border: none;
-  box-shadow: 0 6rpx 20rpx rgba(66, 165, 245, 0.3);
+  box-shadow: 0 6rpx 20rpx rgba(27, 167, 208, 0.3);
+  letter-spacing: 1rpx;
 }
 
 .complete-btn:active {
-  background: linear-gradient(90deg, #1976d2, #0d47a1);
+  background: linear-gradient(90deg, #4bc3b2, #1ba7d0);
 }
 
 .skip-btn {
   width: 100%;
   height: 88rpx;
   background: transparent;
-  color: #666;
-  font-size: 30rpx;
-  border: 2rpx solid #e0e0e0;
+  color: #aedcaa;
+  font-size: 28rpx; /* 中号字体 */
+  font-weight: 500;
+  border: 2rpx solid #aedcaa;
   border-radius: 44rpx;
+  letter-spacing: 0.5rpx;
 }
 
 .skip-btn:active {
-  background: #f5f5f5;
+  background: rgba(174, 220, 170, 0.2);
+}
+
+/* 底部导航栏样式 */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120rpx;
+  background: #fff;
+  border-top: 1rpx solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 1000;
+  box-shadow: 0 -2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  height: 100%;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.nav-item:active {
+  background: rgba(236, 64, 122, 0.1);
+}
+
+.nav-item.active {
+  background: rgba(236, 64, 122, 0.1);
+}
+
+.nav-icon {
+  font-size: 36rpx; /* 大号字体 */
+  margin-bottom: 8rpx;
+  color: #666;
+}
+
+.nav-item.active .nav-icon {
+  color: #ec407a;
+}
+
+.nav-label {
+  font-size: 20rpx; /* 小号字体 */
+  color: #666;
+  text-align: center;
+  font-weight: 400;
+  letter-spacing: 0.5rpx;
+}
+
+.nav-item.active .nav-label {
+  color: #ec407a;
+  font-weight: 500;
 }
 </style>

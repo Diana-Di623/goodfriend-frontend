@@ -3,12 +3,6 @@
     <!-- 顶部导航区 -->
     <view class="header">
       <view class="slogan">{{ slogans[currentSlogan] }}</view>
-      <view class="avatar-group" @click="goProfile">
-        <image class="avatar-img" src="/static/logo.png" />
-        <view v-if="isLoggedIn && currentUserInfo.nickname" class="user-info">
-          <text class="user-nickname">{{ currentUserInfo.nickname }}</text>
-        </view>
-      </view>
     </view>
 
     <view class="main-content">
@@ -37,13 +31,41 @@
         </view>
       </view>
 
-      <!-- 心理测评卡片 -->
-      <view class="test-card" @click="handleTestClick">
-        <view class="test-title">专业心理测评</view>
-        <view class="test-desc">5分钟快速了解你的心理状态</view>
-        <view class="test-footer">
-          <text>已累计帮助10,000+用户</text>
-          <button class="test-btn">开始测试</button>
+      <!-- 心理测评模块 -->
+      <view class="section">
+        <view class="section-title">
+          <text class="icon-test">📝</text>
+          <text>心理测评</text>
+          <text class="badge">专业量表科学评估</text>
+        </view>
+        <view class="test-cards">
+          <view class="test-card sds-card" @click="handleTestClick('SDS')">
+            <view class="test-header">
+              <view class="test-info">
+                <text class="test-name">抑郁自评量表</text>
+                <text class="test-code sds-code">SDS</text>
+              </view>
+            </view>
+            <text class="test-desc">评估抑郁程度的经典量表，包含20个项目，帮助识别抑郁症状，科学有效</text>
+            <view class="test-meta">
+              <text class="test-time">⏱️ 5-10分钟</text>
+              <text class="test-users">已有8,420人测试</text>
+            </view>
+          </view>
+          
+          <view class="test-card sas-card" @click="handleTestClick('SAS')">
+            <view class="test-header">
+              <view class="test-info">
+                <text class="test-name">焦虑自评量表</text>
+                <text class="test-code sas-code">SAS</text>
+              </view>
+            </view>
+            <text class="test-desc">评估焦虑水平的标准量表，包含20个项目，测量焦虑状态和特质，权威准确</text>
+            <view class="test-meta">
+              <text class="test-time">⏱️ 5-10分钟</text>
+              <text class="test-users">已有9,630人测试</text>
+            </view>
+          </view>
         </view>
       </view>
 
@@ -60,18 +82,28 @@
           </view>
         </scroll-view>
       </view>
+    </view>
 
-      <!-- 心愿心语区域 -->
-      <view class="wish-card">
-        <view class="wish-header">
-          <text class="icon-heart"></text>
-          <text>心愿心语</text>
-          <view v-if="unreadMessageCount > 0" class="message-badge">
-            {{ unreadMessageCount > 99 ? '99+' : unreadMessageCount }}
-          </view>
+    <!-- 底部导航栏 -->
+    <view class="bottom-nav">
+      <view class="nav-item" @click="goHome">
+        <text class="nav-icon">🏠</text>
+        <text class="nav-label">首页</text>
+      </view>
+      <view class="nav-item" @click="handleWishClick">
+        <text class="nav-icon">💭</text>
+        <text class="nav-label">心愿心语</text>
+        <view v-if="unreadMessageCount > 0" class="nav-badge">
+          {{ unreadMessageCount > 99 ? '99+' : unreadMessageCount }}
         </view>
-        <view class="wish-desc">在这里分享你的心情，倾听他人的故事</view>
-        <button class="wish-btn" @click="handleWishClick">写下/查看心愿</button>
+      </view>
+      <view class="nav-item" @click="goTestResults">
+        <text class="nav-icon">📊</text>
+        <text class="nav-label">测评结果</text>
+      </view>
+      <view class="nav-item" @click="goProfile">
+        <text class="nav-icon">👤</text>
+        <text class="nav-label">个人中心</text>
       </view>
     </view>
 
@@ -80,11 +112,6 @@
       <text class="icon-refresh"></text>
       有什么麻烦都可以跟好朋友说哟
     </view>
-
-    <!-- 刷新按钮 -->
-    <button class="refresh-btn" @click="handleRefresh">
-      <text class="icon-refresh"></text>
-    </button>
 
     <!-- 登录弹窗 -->
     <view v-if="showLoginModal" class="login-modal">
@@ -95,30 +122,17 @@
           <text class="login-title">会员登录</text>
         </view>
 
-        <!-- Logo区域 -->
-        <view class="logo-section">
-          <view class="logo-container">
-            <image class="app-logo" src="/static/logo.png" />
-            <text class="app-name">好朋友心理</text>
-          </view>
-        </view>
-
         <!-- 底部操作区 -->
         <view class="login-bottom">
           <!-- 用户协议 -->
           <view class="terms-section" @click="toggleTerms">
             <checkbox :checked="termsAccepted" class="terms-checkbox" />
-            <text class="terms-text">我同意好朋友心理服务条款与隐私政策</text>
+            <text class="terms-text">我同意服务条款与隐私政策</text>
           </view>
 
           <!-- 登录按钮 -->
           <button class="login-btn" @click="goToLoginPage">
-            手机号快捷登录
-          </button>
-
-          <!-- 先逛一逛 -->
-          <button class="browse-btn" @click="handleBrowse">
-            先逛一逛
+            立即登录
           </button>
         </view>
       </view>
@@ -135,7 +149,7 @@ const unreadMessageCount = ref(15) // 未读消息数量
 const isRefreshing = ref(false)
 const scrollTop = ref(0) // 竖向滚动位置
 const currentPage = ref(0) // 当前页
-const showLoginModal = ref(true) // 显示登录弹窗（进入页面立即显示）
+const showLoginModal = ref(false) // 默认不显示登录弹窗
 const termsAccepted = ref(false) // 用户协议同意状态
 const isLoggedIn = ref(false) // 用户登录状态
 const counselorIndex = ref(0) // 当前显示的咨询师起始索引
@@ -264,11 +278,11 @@ const articles = [
   '考试焦虑应对指南'
 ]
 
-// 计算属性：获取当前显示的3个咨询师
+// 计算属性：获取当前显示的6个咨询师
 const visibleCounselors = computed(() => {
   const startIndex = counselorIndex.value
   const result = []
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 6; i++) {
     const index = (startIndex + i) % counselors.length
     result.push(counselors[index])
   }
@@ -286,13 +300,8 @@ onMounted(() => {
   if (token && userInfo) {
     isLoggedIn.value = true
     currentUserInfo.value = userInfo
-    showLoginModal.value = false
   } else {
-    // 每次进入小程序都清除登录状态，要求重新登录
-    uni.removeStorageSync('token')
-    uni.removeStorageSync('userInfo')
     isLoggedIn.value = false
-    showLoginModal.value = true
   }
   
   // 标语轮播
@@ -300,10 +309,10 @@ onMounted(() => {
     currentSlogan.value = (currentSlogan.value + 1) % slogans.length
   }, 3000)
   
-  // 咨询师列表自动切换（每3秒切换到下一组3个咨询师）
+  // 咨询师列表自动切换（每4秒切换到下一组6个咨询师）
   scrollInterval = setInterval(() => {
-    counselorIndex.value = (counselorIndex.value + 3) % counselors.length
-  }, 3000)
+    counselorIndex.value = (counselorIndex.value + 6) % counselors.length
+  }, 4000)
 })
 
 onUnmounted(() => {
@@ -317,6 +326,16 @@ function handleRefresh() {
     isRefreshing.value = false
   }, 1000)
 }
+
+// 首页导航 
+function goHome() {
+  // 已经在首页，可以滚动到顶部
+  uni.pageScrollTo({
+    scrollTop: 0,
+    duration: 300
+  })
+}
+
 function goProfile() {
   // 检查是否已登录
   const token = uni.getStorageSync('token')
@@ -353,8 +372,33 @@ function logout() {
     }
   })
 }
-function goTest() {
-  // 跳转到心理测评页
+function goTest(testType) {
+  // 根据测评类型跳转到对应页面
+  const testRoutes = {
+    'SDS': '/pages/test/sds', 
+    'SAS': '/pages/test/sas'
+  }
+  
+  const route = testRoutes[testType]
+  if (route) {
+    uni.navigateTo({
+      url: route,
+      fail: () => {
+        // 如果页面不存在，显示开发中提示
+        uni.showToast({
+          title: `${testType}测评开发中，敬请期待`,
+          icon: 'none',
+          duration: 2000
+        })
+      }
+    })
+  } else {
+    uni.showToast({
+      title: '测评类型错误',
+      icon: 'none',
+      duration: 1500
+    })
+  }
 }
 
 // 检查登录状态的通用函数
@@ -363,11 +407,6 @@ function checkLoginAndShowModal(action) {
   const token = uni.getStorageSync('token')
   if (!token || !isLoggedIn.value) {
     showLoginModal.value = true
-    uni.showToast({
-      title: '需要会员登录才能使用此功能',
-      icon: 'none',
-      duration: 2000
-    })
     return false
   }
   return true
@@ -376,15 +415,17 @@ function checkLoginAndShowModal(action) {
 // 咨询师点击处理
 function handleCounselorClick(counselor) {
   if (checkLoginAndShowModal('咨询师服务')) {
-    // 这里处理咨询师相关逻辑
-    console.log('点击了咨询师:', counselor.name)
+    // 跳转到咨询师详情页面
+    uni.navigateTo({
+      url: `/pages/counselor/detail?counselorId=${counselor.name}&name=${counselor.name}`
+    })
   }
 }
 
 // 心理测评点击处理
-function handleTestClick() {
+function handleTestClick(testType) {
   if (checkLoginAndShowModal('心理测评')) {
-    goTest()
+    goTest(testType)
   }
 }
 
@@ -402,6 +443,16 @@ function handleWishClick() {
     // 这里处理心愿心语相关逻辑
     unreadMessageCount.value = 0
     console.log('点击了心愿心语')
+  }
+}
+
+// 测评结果点击处理
+function goTestResults() {
+  if (checkLoginAndShowModal('测评结果')) {
+    // 跳转到测评结果页面
+    uni.navigateTo({
+      url: '/pages/test/results'
+    })
   }
 }
 
@@ -430,27 +481,7 @@ function goToLoginPage() {
   })
 }
 
-function handleBrowse() {
-  // 检查是否同意协议
-  if (!termsAccepted.value) {
-    uni.showToast({
-      title: '请先同意服务条款',
-      icon: 'none',
-      duration: 1280  // 这里控制显示时间，单位是毫秒
-    })
-    return
-  }
-  // 同意协议后才能先逛一逛，关闭登录弹窗，但不设置为已登录状态
-  // 用户仍然需要登录才能使用各项功能
-  showLoginModal.value = false
-  isLoggedIn.value = false  // 确保未登录状态
-  uni.showToast({
-    title: '欢迎访问，使用功能需要会员登录',
-    icon: 'none',
-    duration: 2000
-  })
-}
-
+// 关闭登录弹窗
 function closeLogin() {
   showLoginModal.value = false
 }
@@ -458,17 +489,13 @@ function closeLogin() {
 
 <style scoped>
 /* 你可以根据实际需求自定义样式，以下为简化版 */
-.bg-gradient { background: linear-gradient(135deg, #fce4ec 0%, #e3f2fd 50%, #ede7f6 100%); min-height: 100vh; }
-.header { display: flex; align-items: center; justify-content: space-between; padding: 24rpx; background: rgba(255,255,255,0.8); border-bottom: 1px solid #f8bbd0; }
-.slogan { font-size: 32rpx; color: #666; }
-.avatar-group { position: relative; display: flex; align-items: center; gap: 12rpx; }
-.avatar-img { width: 96rpx; height: 96rpx; border-radius: 50%; border: 2rpx solid #f8bbd0; }
-.user-info { display: flex; flex-direction: column; }
-.user-nickname { font-size: 24rpx; color: #333; font-weight: 500; }
-.main-content { padding: 32rpx 24rpx; }
+.bg-gradient { background: linear-gradient(135deg, #ecb198 0%, #e2beeb 50%, #b5d9ee 100%); min-height: 100vh; }
+.header { display: flex; align-items: center; justify-content: center; padding: 24rpx; background: rgba(255,255,255,0.8); border-bottom: 1px solid #f8bbd0; }
+.slogan { font-size: 36rpx; color: #666; font-weight: 500; }
+.main-content { padding: 32rpx 24rpx 160rpx; } /* 增加底部间距避免被导航栏遮挡 */
 .section { margin-bottom: 32rpx; }
-.section-title { display: flex; align-items: center; gap: 12rpx; font-size: 28rpx; font-weight: bold; color: #333; margin-bottom: 16rpx; }
-.badge { background: #fce4ec; color: #d81b60; font-size: 20rpx; border-radius: 8rpx; padding: 2rpx 10rpx; }
+.section-title { display: flex; align-items: center; gap: 12rpx; font-size: 32rpx; font-weight: bold; color: #333; margin-bottom: 16rpx; }
+.badge { background: #fce4ec; color: #d81b60; font-size: 22rpx; border-radius: 8rpx; padding: 4rpx 12rpx; }
 .counselor-scroll { width: 100%; height: auto; overflow: hidden; }
 .counselor-container { display: flex; flex-direction: column; gap: 16rpx; }
 .counselor-card { 
@@ -477,51 +504,102 @@ function closeLogin() {
   align-items: center; 
   background: #fff; 
   border-radius: 16rpx; 
-  padding: 16rpx; 
+  padding: 32rpx; 
   box-shadow: 0 2rpx 8rpx #f8bbd0; 
-  width: 100%;
+  width: 91%;
   min-height: 80rpx;
   margin-bottom: 0;
 }
-.counselor-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; margin-right: 16rpx; }
+.counselor-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; margin-right: 24rpx; }
 .counselor-info { flex: 1; text-align: left; }
-.counselor-name { font-size: 24rpx; font-weight: bold; color: #333; margin-bottom: 8rpx; }
-.level { background: #e3f2fd; color: #1976d2; font-size: 16rpx; border-radius: 6rpx; padding: 2rpx 6rpx; margin-left: 4rpx; }
-.counselor-meta { display: flex; flex-wrap: wrap; gap: 8rpx; font-size: 18rpx; color: #666; }
-.specialty { background: #c8e6c9; color: #388e3c; border-radius: 6rpx; padding: 2rpx 6rpx; font-size: 16rpx; }
-.meta-item { font-size: 16rpx; }
-.test-card { background: linear-gradient(90deg, #ab47bc, #ec407a); color: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 32rpx; }
-.test-title { font-size: 28rpx; font-weight: bold; }
-.test-desc { font-size: 22rpx; color: #f3e5f5; margin-bottom: 12rpx; }
-.test-footer { display: flex; align-items: center; justify-content: space-between; }
-.test-btn { background: rgba(255,255,255,0.2); color: #fff; border: none; border-radius: 8rpx; padding: 16rpx 22rpx; margin-left: auto; font-size: 30rpx; margin-right: -5rpx; }
-.article-list { display: flex; flex-direction: row; gap: 16rpx; }
-.article-card { min-width: 200rpx; background: #fff; border-radius: 12rpx; padding: 16rpx; margin-right: 16rpx; }
-.article-title { font-size: 22rpx; color: #333; margin-bottom: 8rpx; }
-.article-desc { font-size: 18rpx; color: #888; }
-.wish-card { background: linear-gradient(90deg, #ffe0b2, #fce4ec); border-radius: 16rpx; padding: 24rpx; margin-bottom: 32rpx; }
-.wish-header { display: flex; align-items: center; gap: 8rpx; font-size: 24rpx; color: #ff7043; position: relative; }
-.message-badge { 
-  min-width: 28rpx; 
-  height: 28rpx; 
-  background: #e53935; 
-  color: #fff; 
-  border-radius: 14rpx; 
-  font-size: 18rpx; 
+.counselor-name { font-size: 28rpx; font-weight: bold; color: #333; margin-bottom: 8rpx; }
+.level { background: #e3f2fd; color: #1976d2; font-size: 18rpx; border-radius: 6rpx; padding: 2rpx 6rpx; margin-left: 4rpx; }
+.counselor-meta { display: flex; align-items: center; gap: 8rpx; font-size: 20rpx; color: #666; flex-wrap: nowrap; }
+.specialty { background: #c8e6c9; color: #388e3c; border-radius: 6rpx; padding: 2rpx 6rpx; font-size: 18rpx; white-space: nowrap; }
+.meta-item { font-size: 18rpx; white-space: nowrap; }
+/* 心理测评样式 */
+.icon-test::before { content: "📝"; color: #9c27b0; margin-right: 4rpx; }
+.test-cards { display: flex; flex-direction: column; gap: 16rpx; }
+.test-card { 
+  background: #fff; 
+  border-radius: 16rpx; 
+  padding: 24rpx; 
+  border: 1rpx solid #f0f0f0;
+  transition: all 0.3s ease;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
+  min-height: 180rpx;
+  display: flex;
+  flex-direction: column;
+}
+.test-card:active { 
+  transform: scale(0.98);
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.1);
+}
+.test-header { display: flex; align-items: center; margin-bottom: 12rpx; }
+.test-icon { font-size: 36rpx; margin-right: 16rpx; }
+.test-info { flex: 1; }
+.test-name { 
+  font-size: 28rpx; 
+  font-weight: 600; 
+  color: #333; 
+  display: block;
+  margin-bottom: 4rpx;
+}
+.test-code { 
+  font-size: 22rpx; 
+  color: #9c27b0; 
+  background: rgba(156, 39, 176, 0.1);
+  padding: 2rpx 8rpx;
+  border-radius: 4rpx;
+}
+
+/* SDS 浅蓝色主题 */
+.sds-card {
+  border-left: 6rpx solid #f0f8ff;
+  background: linear-gradient(135deg, #f8fcff 0%, #e6f4ff 100%);
+}
+.sds-code {
+  color: #2196f3 !important;
+  background: rgba(33, 150, 243, 0.08) !important;
+}
+
+/* SAS 橙色主题 */
+.sas-card {
+  border-left: 6rpx solid #f6f3ee;
+  background: linear-gradient(135deg, #fffaf5 0%, #ffe8ce 100%);
+}
+.sas-code {
+  color: #ff9800 !important;
+  background: rgba(255, 152, 0, 0.1) !important;
+}
+.test-desc { 
+  font-size: 24rpx; 
+  color: #666; 
+  line-height: 1.4;
+  margin-bottom: 16rpx;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 68rpx;
+}
+.test-meta { 
   display: flex; 
   align-items: center; 
-  justify-content: center; 
-  position: absolute; 
-  right: -32rpx; 
-  top: -4rpx;
-  padding: 0 6rpx;
-  font-weight: bold;
+  justify-content: space-between; 
+  font-size: 22rpx;
+  color: #888;
 }
-.wish-desc { font-size: 20rpx; color: #666; margin: 12rpx 0; }
-.wish-btn { width: 100%; background: #fff3e0; color: #ff7043; border: 1rpx solid #ffccbc; border-radius: 8rpx; padding: 12rpx 0; }
+.test-time { color: #ff9800; }
+.test-users { color: #4caf50; }
+.article-list { display: flex; flex-direction: row; gap: 16rpx; }
+.article-card { min-width: 200rpx; background: #fff; border-radius: 12rpx; padding: 16rpx; margin-right: 16rpx; }
+.article-title { font-size: 26rpx; color: #333; margin-bottom: 8rpx; font-weight: 500; }
+.article-desc { font-size: 20rpx; color: #888; }
 .refresh-tip { position: fixed; top: 0; left: 0; right: 0; height: 64rpx; background: #ec407a; color: #fff; display: flex; align-items: center; justify-content: center; transform: translateY(-100%); transition: transform 0.3s; z-index: 100; }
 .refresh-tip.show { transform: translateY(0); }
-.refresh-btn { position: fixed; bottom: 32rpx; right: 32rpx; width: 96rpx; height: 96rpx; background: #ec407a; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40rpx; box-shadow: 0 4rpx 16rpx #f8bbd0; border: none; }
 .icon-heart::before { content: "♥"; color: #ec407a; margin-right: 4rpx; }
 .icon-message::before { content: "💬"; color: #42a5f5; margin-right: 4rpx; }
 .icon-refresh::before { content: "⟳"; color: #fff; margin-right: 4rpx; }
@@ -531,86 +609,108 @@ function closeLogin() {
 .login-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); }
 .login-content { 
   position: absolute; 
-  top: 0; 
-  left: 0; 
-  right: 0; 
-  bottom: 0; 
-  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 50%, #fce4ec 100%); 
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  max-width: 520rpx;
+  background: #fff; 
+  border-radius: 40rpx; 
   display: flex; 
   flex-direction: column; 
-  max-width: 750rpx; 
-  margin: 0 auto;
 }
 .login-header { 
   display: flex; 
   align-items: center; 
   justify-content: center; 
-  padding: 32rpx 24rpx; 
-  background: #fff; 
+  padding: 32rpx 24rpx 24rpx; 
 }
-.login-title { font-size: 36rpx; font-weight: 500; color: #333; }
-.logo-section { 
-  flex: 1; 
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
-  padding: 64rpx 0; 
-}
-.logo-container { 
-  display: flex; 
-  flex-direction: column; 
-  align-items: center; 
-  justify-content: center; 
-  text-align: center; 
-}
-.app-logo { 
-  width: 240rpx; 
-  height: 240rpx; 
-  border-radius: 24rpx; 
-  margin-bottom: 32rpx; 
-  display: block;
-}
-.app-name { 
-  font-size: 48rpx; 
-  font-weight: bold; 
-  color: #333; 
-  letter-spacing: 4rpx; 
-  text-align: center;
-}
-.login-bottom { padding: 0 48rpx 64rpx; }
+.login-title { font-size: 32rpx; font-weight: 600; color: #333; }
+.login-bottom { padding: 20rpx 32rpx 32rpx; }
 .terms-section { 
   display: flex; 
   align-items: flex-start; 
-  margin-bottom: 32rpx; 
-  gap: 16rpx; 
+  margin-bottom: 20rpx; 
+  gap: 18rpx; 
 }
-.terms-checkbox { margin-top: 8rpx; }
+.terms-checkbox { margin-top: -10rpx; }
 .terms-text { 
-  font-size: 28rpx; 
+  font-size: 24rpx; 
   color: #666; 
-  line-height: 1.5; 
+  line-height: 1.4; 
   flex: 1; 
 }
 .login-btn { 
   width: 100%; 
-  background: #ffeb3b; 
-  color: #333; 
+  background: linear-gradient(135deg, #1ba7d0, #4bc3b2); 
+  color: #fff; 
   font-size: 32rpx; 
-  font-weight: 500; 
-  border-radius: 48rpx; 
-  padding: 32rpx 0; 
+  font-weight: 550; 
+  border-radius: 12rpx; 
+  padding: 12rpx 0; 
   border: none; 
-  margin-bottom: 32rpx; 
+  margin-bottom: 0; 
+  letter-spacing: 1rpx;
 }
-.login-btn:hover { background: #fdd835; }
-.browse-btn { 
-  width: 100%; 
-  background: transparent; 
-  color: #666; 
-  font-size: 32rpx; 
-  border: 2rpx solid #ddd; 
-  border-radius: 48rpx; 
-  padding: 24rpx 0; 
+.login-btn:active { opacity: 0.8; }
+
+/* 底部导航栏样式 */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120rpx;
+  background: #fff;
+  border-top: 1rpx solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 1000;
+  box-shadow: 0 -2rpx 10rpx rgba(0,0,0,0.1);
 }
-.browse-btn:hover { background: #f5f5f5; }
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  height: 100%;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.nav-item:active {
+  background: rgba(236, 64, 122, 0.1);
+}
+
+.nav-icon {
+  font-size: 36rpx; /* 大号字体 */
+  margin-bottom: 8rpx;
+  color: #666;
+}
+
+.nav-label {
+  font-size: 20rpx; /* 小号字体 */
+  color: #666;
+  text-align: center;
+}
+
+.nav-badge {
+  position: absolute;
+  top: 10rpx;
+  right: 20%;
+  min-width: 32rpx;
+  height: 32rpx;
+  background: #e53935;
+  color: #fff;
+  border-radius: 16rpx;
+  font-size: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8rpx;
+  font-weight: bold;
+}
 </style>

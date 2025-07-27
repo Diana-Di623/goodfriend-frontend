@@ -3,10 +3,7 @@
     <!-- 头部 -->
     <view class="header">
       <view class="header-content">
-        <view class="nav-left" @click="goBack">
-          <text class="back-icon">←</text>
-          <text class="back-text">返回首页</text>
-        </view>
+        <view class="nav-left"></view>
         <text class="title">个人信息</text>
         <view class="nav-right"></view>
       </view>
@@ -37,7 +34,7 @@
         />
       </view>
 
-      <!-- 性别选择 - 只提供男女两个选项 -->
+      <!-- 性别选择 - 提供男女和未知选项来保护隐私 -->
       <view class="form-item">
         <text class="label">性别👫</text>
         <view class="gender-container">
@@ -135,12 +132,38 @@
         </button>
       </view>
     </view>
+
+    <!-- 底部导航栏 -->
+    <view class="bottom-nav">
+      <view class="nav-item" @click="goHome">
+        <text class="nav-icon">🏠</text>
+        <text class="nav-label">首页</text>
+      </view>
+      <view class="nav-item" @click="handleWishClick">
+        <text class="nav-icon">💭</text>
+        <text class="nav-label">心愿心语</text>
+        <view v-if="unreadMessageCount > 0" class="nav-badge">
+          {{ unreadMessageCount > 99 ? '99+' : unreadMessageCount }}
+        </view>
+      </view>
+      <view class="nav-item" @click="goTestResults">
+        <text class="nav-icon">📊</text>
+        <text class="nav-label">测评结果</text>
+      </view>
+      <view class="nav-item active">
+        <text class="nav-icon">👤</text>
+        <text class="nav-label">个人中心</text>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { GENDER_OPTIONS, REGION_OPTIONS, BIRTHDAY_CONFIG, isValidGender, isValidBirthday, calculateAge, getGenderLabel } from '@/utils/constants.js'
+
+// 未读消息数量
+const unreadMessageCount = ref(15)
 
 // 性别选项
 const genderOptions = GENDER_OPTIONS
@@ -222,10 +245,49 @@ function onRegionChange(e) {
   }
 }
 
-// 返回首页
-function goBack() {
+// 首页导航
+function goHome() {
   uni.reLaunch({
     url: '/pages/index/index'
+  })
+}
+
+// 心愿心语导航
+function handleWishClick() {
+  // 检查登录状态
+  const token = uni.getStorageSync('token')
+  if (!token) {
+    uni.showToast({
+      title: '需要会员登录才能使用此功能',
+      icon: 'none',
+      duration: 2000
+    })
+    return
+  }
+  
+  // 这里处理心愿心语相关逻辑
+  uni.showToast({
+    title: '心愿心语功能开发中',
+    icon: 'none',
+    duration: 2000
+  })
+}
+
+// 测评结果导航
+function goTestResults() {
+  // 检查登录状态
+  const token = uni.getStorageSync('token')
+  if (!token) {
+    uni.showToast({
+      title: '需要会员登录才能使用此功能',
+      icon: 'none',
+      duration: 2000
+    })
+    return
+  }
+  
+  uni.navigateTo({
+    url: '/pages/test/results'
   })
 }
 
@@ -412,6 +474,7 @@ function handleLogout() {
 .profile-page {
   min-height: 100vh;
   background: #f8f8f8;
+  padding-bottom: 120rpx; /* 为底部导航栏留出空间 */
 }
 
 .header {
@@ -456,11 +519,12 @@ function handleLogout() {
 }
 
 .title {
-  font-size: 36rpx;
+  font-size: 36rpx; /* 大号字体 */
   font-weight: 600;
   color: #333;
   flex: 1;
   text-align: center;
+  letter-spacing: 1rpx;
 }
 
 .form-container {
@@ -488,9 +552,10 @@ function handleLogout() {
 
 .label {
   width: 140rpx;
-  font-size: 28rpx;
+  font-size: 28rpx; /* 中号字体 */
   color: #333;
   font-weight: 500;
+  letter-spacing: 0.5rpx;
 }
 
 .avatar-section {
@@ -514,11 +579,12 @@ function handleLogout() {
 
 .input-field {
   flex: 1;
-  font-size: 28rpx;
+  font-size: 28rpx; /* 中号字体 */
   color: #333;
   background: transparent;
   padding: 0;
   margin: 0;
+  font-weight: 400;
 }
 
 /* 性别选择样式 */
@@ -546,9 +612,10 @@ function handleLogout() {
 }
 
 .gender-text {
-  font-size: 28rpx;
+  font-size: 28rpx; /* 中号字体 */
   color: #666;
   font-weight: 500;
+  letter-spacing: 0.5rpx;
 }
 
 .gender-option.active .gender-text {
@@ -557,7 +624,7 @@ function handleLogout() {
 
 .picker-field {
   flex: 1;
-  font-size: 28rpx;
+  font-size: 28rpx; /* 中号字体 */
   color: #333;
   height: 64rpx;
   border: 2rpx solid #e8e8e8;
@@ -567,6 +634,7 @@ function handleLogout() {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  font-weight: 400;
 }
 
 .placeholder {
@@ -578,18 +646,21 @@ function handleLogout() {
 }
 
 .readonly-text {
-  font-size: 28rpx;
+  font-size: 28rpx; /* 中号字体 */
   color: #999;
+  font-weight: 400;
 }
 
 .textarea-field {
   flex: 1;
   min-height: 120rpx;
-  font-size: 28rpx;
+  font-size: 28rpx; /* 中号字体 */
   color: #333;
   background: transparent;
   padding: 0;
   margin: 0;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 .save-section {
@@ -599,12 +670,13 @@ function handleLogout() {
 .save-btn {
   width: 100%;
   height: 88rpx;
-  background: linear-gradient(135deg, #ec407a, #e91e63);
+  background: linear-gradient(135deg, #1ba7d0, #4bc3b2);
   color: #fff;
   border: none;
   border-radius: 16rpx;
-  font-size: 32rpx;
+  font-size: 36rpx; /* 大号字体 */
   font-weight: 600;
+  letter-spacing: 1rpx;
 }
 
 .save-btn:active {
@@ -612,17 +684,18 @@ function handleLogout() {
 }
 
 .action-section {
-  padding: 40rpx 32rpx;
+  padding: 40rpx 48rpx;
   background: #fff;
-  margin: 20rpx 32rpx;
+  margin: 20rpx 16rpx;
   border-radius: 16rpx;
 }
 
 .section-title {
-  font-size: 32rpx;
+  font-size: 36rpx; /* 大号字体 */
   font-weight: 600;
   color: #333;
   margin-bottom: 24rpx;
+  letter-spacing: 0.5rpx;
 }
 
 .action-buttons {
@@ -634,13 +707,16 @@ function handleLogout() {
 .action-btn {
   display: flex;
   align-items: center;
-  padding: 24rpx;
+  padding: 32rpx 48rpx;
   background: #f8f9fa;
   border: 1rpx solid #e9ecef;
   border-radius: 12rpx;
-  font-size: 28rpx;
+  font-size: 32rpx; /* 更大字体 */
   color: #333;
   transition: all 0.2s;
+  font-weight: 500;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .action-btn:active {
@@ -649,24 +725,101 @@ function handleLogout() {
 }
 
 .logout-btn {
-  background: #fee;
-  border-color: #fecaca;
-  color: #dc2626;
+  background: rgba(174, 220, 170, 0.2);
+  border-color: #aedcaa;
+  color: #4bc3b2;
 }
 
 .logout-btn:active {
-  background: #fecaca;
+  background: rgba(174, 220, 170, 0.3);
 }
 
 .action-icon {
-  font-size: 32rpx;
-  margin-right: 16rpx;
-  width: 40rpx;
+  font-size: 40rpx;
+  margin-right: 24rpx;
+  width: 48rpx;
   text-align: center;
 }
 
 .action-text {
   flex: 1;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  font-size: 32rpx;
+}
+
+/* 底部导航栏样式 */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120rpx;
+  background: #fff;
+  border-top: 1rpx solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 1000;
+  box-shadow: 0 -2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  height: 100%;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.nav-item:active {
+  background: rgba(236, 64, 122, 0.1);
+}
+
+.nav-item.active {
+  background: rgba(236, 64, 122, 0.1);
+}
+
+.nav-icon {
+  font-size: 36rpx; /* 大号字体 */
+  margin-bottom: 8rpx;
+  color: #666;
+}
+
+.nav-item.active .nav-icon {
+  color: #ec407a;
+}
+
+.nav-label {
+  font-size: 20rpx; /* 小号字体 */
+  color: #666;
+  text-align: center;
+  font-weight: 400;
+  letter-spacing: 0.5rpx;
+}
+
+.nav-item.active .nav-label {
+  color: #ec407a;
   font-weight: 500;
+}
+
+.nav-badge {
+  position: absolute;
+  top: 10rpx;
+  right: 20%;
+  min-width: 32rpx;
+  height: 32rpx;
+  background: #e53935;
+  color: #fff;
+  border-radius: 16rpx;
+  font-size: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8rpx;
+  font-weight: bold;
 }
 </style>

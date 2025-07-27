@@ -41,10 +41,11 @@
           />
           <button 
             class="send-code-btn" 
+            :class="{ 'btn-ready': canSendCode && countdown === 0, 'btn-disabled': !canSendCode || countdown > 0 }"
             @click="sendVerificationCode"
-            :disabled="!canSendCode || countdown > 0"
+            :disabled="countdown > 0"
           >
-            {{ countdown > 0 ? `${countdown}s后重发` : '获取验证码' }}
+            {{ getCodeButtonText }}
           </button>
         </view>
       </view>
@@ -97,6 +98,29 @@ const canSendCode = computed(() => {
   return phoneRegex.test(phoneNumber.value) && termsAccepted.value
 })
 
+// 计算属性：验证码按钮文字
+const getCodeButtonText = computed(() => {
+  if (countdown.value > 0) {
+    return `${countdown.value}s后重发`
+  }
+  
+  const phoneRegex = /^1[3-9]\d{9}$/
+  
+  if (!phoneNumber.value) {
+    return '请输入手机号'
+  }
+  
+  if (!phoneRegex.test(phoneNumber.value)) {
+    return '手机号格式错误'
+  }
+  
+  if (!termsAccepted.value) {
+    return '请同意协议'
+  }
+  
+  return '获取验证码'
+})
+
 // 先逛一逛，跳转到首页
 function goBrowse() {
   uni.reLaunch({
@@ -111,22 +135,47 @@ function toggleTerms() {
 
 // 发送验证码
 async function sendVerificationCode() {
-  const phoneRegex = /^1[3-9]\d{9}$/
-  
-  if (!phoneRegex.test(phoneNumber.value)) {
-    uni.showToast({
-      title: '请输入正确的手机号',
-      icon: 'none',
-      duration: 1500
+  // 检查是否在倒计时中
+  if (countdown.value > 0) {
+    uni.showModal({
+      title: '验证码发送限制',
+      content: `验证码已发送，请等待 ${countdown.value} 秒后再次获取`,
+      showCancel: false,
+      confirmText: '我知道了'
     })
     return
   }
 
+  const phoneRegex = /^1[3-9]\d{9}$/
+  
+  // 检查手机号格式
+  if (!phoneNumber.value) {
+    uni.showModal({
+      title: '无法发送验证码',
+      content: '请先输入手机号码',
+      showCancel: false,
+      confirmText: '我知道了'
+    })
+    return
+  }
+  
+  if (!phoneRegex.test(phoneNumber.value)) {
+    uni.showModal({
+      title: '手机号格式错误',
+      content: '请输入正确的11位手机号码\n（支持移动、联通、电信号段）',
+      showCancel: false,
+      confirmText: '我知道了'
+    })
+    return
+  }
+
+  // 检查用户协议
   if (!termsAccepted.value) {
-    uni.showToast({
-      title: '请先同意用户协议和隐私政策',
-      icon: 'none',
-      duration: 1500
+    uni.showModal({
+      title: '需要同意协议',
+      content: '发送验证码前，请先阅读并同意《用户协议》和《隐私政策》',
+      showCancel: false,
+      confirmText: '我知道了'
     })
     return
   }
@@ -183,7 +232,7 @@ function handleLogin() {
   // 验证固定验证码123456
   if (verificationCode.value !== '123456') {
     uni.showToast({
-      title: '验证码错误，请输入123456',
+      title: '验证码错误qwq,请输入123456',
       icon: 'none',
       duration: 2000
     })
@@ -207,6 +256,9 @@ async function performLogin() {
     // 获取现有用户信息（如果有的话）
     const existingUserInfo = uni.getStorageSync('userInfo') || {}
     
+    // 生成登录时间标识，用于测评数据清零
+    const loginTime = Date.now().toString()
+    
     // 模拟保存基础登录信息
     const mockToken = 'mock_token_' + Date.now()
     const mockUserInfo = {
@@ -218,6 +270,7 @@ async function performLogin() {
     
     uni.setStorageSync('token', mockToken)
     uni.setStorageSync('userInfo', mockUserInfo)
+    uni.setStorageSync('loginTime', loginTime) // 设置登录时间标识
 
     uni.showToast({
       title: '登录成功',
@@ -247,7 +300,7 @@ async function performLogin() {
 <style scoped>
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 50%, #fce4ec 100%);
+  background: linear-gradient(135deg, #ecb198 0%, #e2beeb 50%, #b5d9ee 100%);
 }
 
 .login-header {
@@ -331,6 +384,7 @@ async function performLogin() {
 .verification-container {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 16rpx;
 }
 
@@ -341,28 +395,48 @@ async function performLogin() {
 .send-code-btn {
   height: 96rpx;
   padding: 0 32rpx;
-  background: #42a5f5;
+  background: #9e9e9e;
   color: #fff;
   border: none;
   border-radius: 16rpx;
   font-size: 28rpx;
   white-space: nowrap;
   min-width: 160rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding-top: 4rpx;
+  transition: all 0.3s ease;
 }
 
-.send-code-btn:not(:disabled):active {
-  background: #1976d2;
+.send-code-btn.btn-ready {
+  background: linear-gradient(90deg, #1ba7d0, #4bc3b2);
+  cursor: pointer;
+}
+
+.send-code-btn.btn-ready:active {
+  background: linear-gradient(90deg, #4bc3b2, #1ba7d0);
+  transform: scale(0.98);
+}
+
+.send-code-btn.btn-disabled {
+  background: #9e9e9e;
+  color: #fff;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .send-code-btn:disabled {
-  background: #e0e0e0;
-  color: #999;
+  background: linear-gradient(90deg, #1ba7d0, #4bc3b2);
+  color: #fff;
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .agreement-section {
-  margin-bottom: 48rpx;
+  margin-bottom: 100rpx;
+  margin-top: 60rpx;
 }
 
 .agreement-container {
@@ -380,6 +454,7 @@ async function performLogin() {
   color: #666;
   line-height: 1.5;
   flex: 1;
+  margin-top: 15rpx;
 }
 
 .link-text {
@@ -389,18 +464,23 @@ async function performLogin() {
 .login-btn {
   width: 100%;
   height: 96rpx;
-  background: linear-gradient(90deg, #42a5f5, #1976d2);
+  background: linear-gradient(90deg, #1ba7d0, #4bc3b2);
   color: #fff;
   font-size: 32rpx;
   font-weight: 500;
   border-radius: 48rpx;
   border: none;
   margin-bottom: 60rpx;
-  box-shadow: 0 8rpx 24rpx rgba(66, 165, 245, 0.3);
+  box-shadow: 0 8rpx 24rpx rgba(27, 167, 208, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding-top: 4rpx;
 }
 
 .login-btn:active {
-  background: linear-gradient(90deg, #1976d2, #0d47a1);
+  background: linear-gradient(90deg, #4bc3b2, #1ba7d0);
 }
 
 .other-login {
