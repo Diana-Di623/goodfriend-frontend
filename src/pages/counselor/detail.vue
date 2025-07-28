@@ -609,32 +609,25 @@ onMounted(() => {
   const pages = getCurrentPages()
   const currentPage = pages[pages.length - 1]
   const options = currentPage.options
-  
+
   console.log('页面参数:', options)
-  
-  // 优先使用 counselorId，如果没有则使用 name
-  const counselorId = options.counselorId || options.name
-  
+
+  // 优先使用 counselorId，如果没有则使用 name，并自动 decodeURIComponent
+  const rawId = options.counselorId || options.name
+  const counselorId = rawId ? decodeURIComponent(rawId) : ''
+
   if (counselorId) {
     getCounselorDetail(counselorId)
-  } 
+  }
 })
 
 function goBack() {
-  console.log('返回按钮被点击')
-  try {
-    uni.navigateBack({
-      fail: (err) => {
-        console.error('返回失败:', err)
-        // 如果没有上一页，则跳转到首页
-        uni.reLaunch({
-          url: '/pages/index/index'
-        })
-      }
-    })
-  } catch (error) {
-    console.error('导航出错:', error)
-  }
+  // 修正返回逻辑，优先 navigateBack，失败则跳首页
+  uni.navigateBack({
+    fail: () => {
+      uni.switchTab({ url: '/pages/index/index' })
+    }
+  })
 }
 
 function getCounselorDetail(counselorId) {

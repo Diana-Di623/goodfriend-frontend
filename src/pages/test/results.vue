@@ -1,12 +1,6 @@
 <template>
   <view class="results-page">
-    <!-- 顶部导航 -->
-    <view class="header">
-      <view class="back-btn" @click="goBack">
-        <text class="icon">←</text>
-      </view>
-      <text class="title">测评结果</text>
-    </view>
+    <!-- 使用系统导航栏和底部tabBar，无需自定义底部占位 -->
 
     <!-- 测评历史概览 -->
     <view class="overview-section">
@@ -15,7 +9,7 @@
           <text class="overview-title">测评历史概览</text>
           <text class="overview-count">共 {{ testResults.length }} 次测评</text>
         </view>
-        <view class="stats-grid">
+        <view v-if="testResults.length > 0" class="stats-grid">
           <view class="stat-item">
             <text class="stat-number">{{ sdsCount }}</text>
             <text class="stat-label">SDS抑郁测评</text>
@@ -25,9 +19,11 @@
             <text class="stat-label">SAS焦虑测评</text>
           </view>
         </view>
+        <view v-else class="empty-tip" style="text-align:center;color:#aaa;padding:32rpx 0;">
+          暂无测评记录，快去完成一次测评吧！
+        </view>
       </view>
     </view>
-
 
     <!-- 最新结果 -->
     <view class="latest-section" v-if="latestResult">
@@ -42,15 +38,6 @@
             <text class="score-value">{{ latestResult.standardScore }}分</text>
             <text class="score-level" :class="getLevelClass(latestResult.standardScore, latestResult.testType)">
               {{ latestResult.level }}
-// 咨询师卡片点击事件，跳转到详情页并传递参数
-function handleCounselorClick(counselor) {
-  const query = Object.entries(counselor)
-    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-    .join('&');
-  uni.navigateTo({
-    url: `/pages/counselor/detail?${query}`
-  });
-}
             </text>
           </view>
           <text class="latest-interpretation">{{ latestResult.interpretation }}</text>
@@ -88,7 +75,6 @@ function handleCounselorClick(counselor) {
         </view>
       </view>
     </view>
-
     <!-- 历史记录 -->
     <view class="history-section">
       <view class="history-header">
@@ -112,10 +98,48 @@ function handleCounselorClick(counselor) {
         </view>
       </view>
     </view>
+    <!-- 调试按钮，点击弹窗显示 testResults 和 displayResults -->
+    <view style="padding:24rpx;text-align:center;">
+      <button @click="showDebugInfo" style="background:#2196f3;color:#fff;border-radius:8rpx;padding:12rpx 32rpx;">调试：显示测评数据</button>
+    </view>
+    <!-- 底部功能栏（合并唯一一个） -->
+    <view class="bottom-nav">
+      <view class="nav-item" @click="goHome">
+        <text class="nav-icon">🏠</text>
+        <text class="nav-label">首页</text>
+      </view>
+      <view class="nav-item" @click="handleWishClick">
+        <text class="nav-icon">💭</text>
+        <text class="nav-label">心愿心语</text>
+        <view v-if="unreadMessageCount > 0" class="nav-badge">
+          {{ unreadMessageCount > 99 ? '99+' : unreadMessageCount }}
+        </view>
+      </view>
+      <view class="nav-item active">
+        <text class="nav-icon">📊</text>
+        <text class="nav-label">测评结果</text>
+      </view>
+      <view class="nav-item" @click="goProfile">
+        <text class="nav-icon">👤</text>
+        <text class="nav-label">个人中心</text>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup>
+// 未读消息数量（如 profile.vue）
+const unreadMessageCount = ref(15)
+
+function goHome() {
+  uni.navigateTo({ url: '/pages/index/index' })
+}
+function handleWishClick() {
+  uni.navigateTo({ url: '/pages/wish/wish' })
+}
+function goProfile() {
+  uni.navigateTo({ url: '/pages/profile/profile' })
+}
 import { ref, onMounted, computed } from 'vue'
 
 const testResults = ref([])
@@ -147,7 +171,7 @@ const recommendedCounselors = ref([
     level: '专家咨询师',
     specialty: '青少年心理',
     gender: '女',
-    location: '广州',
+    location: '广州·天河',
     rating: 5.0,
     avatar: '/static/logo.png',
     matchReason: '专业匹配'
@@ -157,7 +181,7 @@ const recommendedCounselors = ref([
     level: '高级咨询师',
     specialty: '家庭治疗',
     gender: '女',
-    location: '北京',
+    location: '北京·朝阳',
     rating: 4.9,
     avatar: '/static/logo.png',
     matchReason: '好评推荐'
@@ -167,7 +191,7 @@ const recommendedCounselors = ref([
     level: '资深咨询师',
     specialty: '情感关系',
     gender: '男',
-    location: '上海',
+    location: '上海·浦东',
     rating: 4.8,
     avatar: '/static/logo.png',
     matchReason: '经验丰富'
@@ -183,7 +207,43 @@ onMounted(() => {
 })
 
 function loadTestResults() {
-  const results = uni.getStorageSync('testResults') || []
+  let results = uni.getStorageSync('testResults') || []
+  if (!results || results.length === 0) {
+    // 初始化生成3条假数据
+    results = [
+      {
+        testType: 'SDS',
+        rawScore: 40,
+        standardScore: 50,
+        level: '轻度',
+        answers: [],
+        date: new Date(Date.now() - 86400000 * 2).toISOString(),
+        interpretation: '轻度抑郁，建议关注情绪变化。',
+        suggestion: '适当休息，保持良好作息。'
+      },
+      {
+        testType: 'SAS',
+        rawScore: 35,
+        standardScore: 44,
+        level: '正常',
+        answers: [],
+        date: new Date(Date.now() - 86400000 * 1).toISOString(),
+        interpretation: '无明显焦虑症状。',
+        suggestion: '继续保持积极心态。'
+      },
+      {
+        testType: 'SDS',
+        rawScore: 55,
+        standardScore: 69,
+        level: '中度',
+        answers: [],
+        date: new Date().toISOString(),
+        interpretation: '中度抑郁，建议寻求专业帮助。',
+        suggestion: '建议咨询心理医生。'
+      }
+    ]
+    uni.setStorageSync('testResults', results)
+  }
   testResults.value = results.sort((a, b) => new Date(a.date) - new Date(b.date))
 }
 
@@ -221,6 +281,40 @@ function drawTrendChart(ctx, width, height) {
   
   // ...绘制网格线等图表内容...
 }
+
+// 日期格式化方法，修复模板报错
+function formatDate(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+}
+
+
+// 咨询师卡片点击跳转详情页
+function handleCounselorClick(counselor) {
+  uni.navigateTo({
+    url: `/pages/counselor/detail?name=${encodeURIComponent(counselor.name)}`
+  })
+}
+
+// 历史记录点击事件，弹窗显示详情
+function viewResult(result) {
+  uni.showModal({
+    title: '测评详情',
+    content: `类型: ${result.testType}\n分数: ${result.standardScore}\n等级: ${result.level}\n时间: ${formatDate(result.date)}\n解读: ${result.interpretation}`,
+    showCancel: false
+  })
+}
+
+// 调试按钮事件，弹窗显示 testResults 和 displayResults
+function showDebugInfo() {
+  uni.showModal({
+    title: '调试信息',
+    content: `testResults: ${JSON.stringify(testResults.value, null, 2)}\n\ndisplayResults: ${JSON.stringify(displayResults.value, null, 2)}`,
+    showCancel: false
+  })
+}
+
 </script>
 
 <style scoped>
@@ -619,5 +713,79 @@ function drawTrendChart(ctx, width, height) {
 .level-severe {
   background: #fce4ec;
   color: #e91e63;
+}
+/* 底部导航栏样式 */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120rpx;
+  background: #fff;
+  border-top: 1rpx solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 1000;
+  box-shadow: 0 -2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  height: 100%;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.nav-item:active {
+  background: rgba(236, 64, 122, 0.1);
+}
+
+.nav-item.active {
+  background: rgba(236, 64, 122, 0.1);
+}
+
+.nav-icon {
+  font-size: 36rpx; /* 大号字体 */
+  margin-bottom: 8rpx;
+  color: #666;
+}
+
+.nav-item.active .nav-icon {
+  color: #ec407a;
+}
+
+.nav-label {
+  font-size: 20rpx; /* 小号字体 */
+  color: #666;
+  text-align: center;
+  font-weight: 400;
+  letter-spacing: 0.5rpx;
+}
+
+.nav-item.active .nav-label {
+  color: #ec407a;
+  font-weight: 500;
+}
+
+.nav-badge {
+  position: absolute;
+  top: 10rpx;
+  right: 20%;
+  min-width: 32rpx;
+  height: 32rpx;
+  background: #e53935;
+  color: #fff;
+  border-radius: 16rpx;
+  font-size: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8rpx;
+  font-weight: bold;
 }
 </style>

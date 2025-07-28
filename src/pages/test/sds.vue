@@ -220,6 +220,7 @@ function calculateResult() {
   // SDS标准分 = 粗分 × 1.25，四舍五入到整数
   standardScore.value = Math.round(total * 1.25)
   showResult.value = true
+  saveResult() // 自动保存结果
 }
 
 function getDepressionLevel() {
@@ -312,9 +313,7 @@ function saveResult() {
   })
   
   setTimeout(() => {
-    uni.navigateTo({
-      url: '/pages/test/results'
-    })
+    uni.navigateBack()
   }, 2000)
 }
 </script>

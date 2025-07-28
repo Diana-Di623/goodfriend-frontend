@@ -1,5 +1,23 @@
 <template>
   <view class="min-h-screen bg-gradient">
+    <!-- 全局加载遮罩 -->
+    <view v-if="isPageLoading" class="global-loading-mask">
+      <view class="loading-progress-bar-info">
+        <text class="loading-progress-text">{{ Math.round(progressBarWidth) }}%</text>
+      </view>
+      <view class="loading-progress-bar-wrap-bottom">
+        <view class="loading-progress-bar" :style="{ width: progressBarWidth + '%' }"></view>
+      </view>
+      <image class="loading-logo" src="/static/logo.png" mode="aspectFit" />
+      <text class="loading-title">好朋友心理</text>
+      <view class="loading-spinner">
+        <view class="dot"></view>
+        <view class="dot"></view>
+        <view class="dot"></view>
+      </view>
+      <text class="loading-text">加载中...</text>
+    </view>
+
     <!-- 顶部导航区 -->
     <view class="header">
       <view class="slogan">{{ slogans[currentSlogan] }}</view>
@@ -8,6 +26,7 @@
     <view class="main-content">
       <!-- 专业团队区域 -->
       <view class="section">
+        <view class="main-title" style="margin-bottom: 18rpx;">♥ 好朋友心理 ♥</view>
         <view class="section-title">
           <text class="icon-heart"></text>
           <text>专业团队</text>
@@ -141,7 +160,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 
 const currentSlogan = ref(0)
 const hasNewMessage = ref(true)
@@ -154,6 +173,8 @@ const termsAccepted = ref(false) // 用户协议同意状态
 const isLoggedIn = ref(false) // 用户登录状态
 const counselorIndex = ref(0) // 当前显示的咨询师起始索引
 const currentUserInfo = ref({}) // 当前用户信息
+const isPageLoading = ref(true) // 全局页面加载状态
+const progressBarWidth = ref(0) // 加载进度条宽度百分比
 
 const slogans = [
   '每个情绪都值得被倾听',
@@ -289,10 +310,32 @@ const visibleCounselors = computed(() => {
   return result
 })
 
+
 let interval = null
 let scrollInterval = null
+let progressTimer = null
+
+// 封装全局 loading 动画启动
+function showLoadingWithProgress(duration = 3000) {
+  isPageLoading.value = true
+  progressBarWidth.value = 0
+  if (progressTimer) clearInterval(progressTimer)
+  setTimeout(() => {
+    let start = Date.now()
+    progressTimer = setInterval(() => {
+      const elapsed = Date.now() - start
+      let percent = Math.min(100, (elapsed / duration) * 100)
+      progressBarWidth.value = percent
+      if (percent >= 100) {
+        clearInterval(progressTimer)
+        isPageLoading.value = false
+      }
+    }, 16)
+  }, 30)
+}
 
 onMounted(() => {
+  showLoadingWithProgress(3000)
   // 检查登录状态
   const token = uni.getStorageSync('token')
   const userInfo = uni.getStorageSync('userInfo')
@@ -318,6 +361,7 @@ onMounted(() => {
 onUnmounted(() => {
   clearInterval(interval)
   clearInterval(scrollInterval)
+  if (progressTimer) clearInterval(progressTimer)
 })
 
 function handleRefresh() {
@@ -327,30 +371,36 @@ function handleRefresh() {
   }, 1000)
 }
 
+
 // 首页导航 
 function goHome() {
-  // 已经在首页，可以滚动到顶部
-  uni.pageScrollTo({
-    scrollTop: 0,
-    duration: 300
-  })
+  showLoadingWithProgress(1000)
+  setTimeout(() => {
+    uni.pageScrollTo({
+      scrollTop: 0,
+      duration: 300
+    })
+  }, 500)
 }
 
 function goProfile() {
   // 检查是否已登录
   const token = uni.getStorageSync('token')
-  if (!token) {
-    // 未登录，跳转到登录页面
+  showLoadingWithProgress(1200)
+  setTimeout(() => {
+    if (!token) {
+      // 未登录，跳转到登录页面
+      uni.navigateTo({
+        url: '/pages/login/login',
+        // 不再手动关闭 loading，由动画控制
+      })
+      return
+    }
+    // 已登录，直接跳转到个人资料页面
     uni.navigateTo({
-      url: '/pages/login/login'
+      url: '/pages/profile/profile',
     })
-    return
-  }
-
-  // 已登录，直接跳转到个人资料页面
-  uni.navigateTo({
-    url: '/pages/profile/profile'
-  })
+  }, 500)
 }
 
 // 退出登录
@@ -378,27 +428,32 @@ function goTest(testType) {
     'SDS': '/pages/test/sds', 
     'SAS': '/pages/test/sas'
   }
-  
   const route = testRoutes[testType]
-  if (route) {
-    uni.navigateTo({
-      url: route,
-      fail: () => {
-        // 如果页面不存在，显示开发中提示
-        uni.showToast({
-          title: `${testType}测评开发中，敬请期待`,
-          icon: 'none',
-          duration: 2000
-        })
-      }
-    })
-  } else {
-    uni.showToast({
-      title: '测评类型错误',
-      icon: 'none',
-      duration: 1500
-    })
-  }
+  showLoadingWithProgress(1200)
+  setTimeout(() => {
+    if (route) {
+      uni.navigateTo({
+        url: route,
+        // 不再手动关闭 loading，由动画控制
+        fail: () => {
+          isPageLoading.value = false
+          // 如果页面不存在，显示开发中提示
+          uni.showToast({
+            title: `${testType}测评开发中，敬请期待`,
+            icon: 'none',
+            duration: 2000
+          })
+        }
+      })
+    } else {
+      isPageLoading.value = false
+      uni.showToast({
+        title: '测评类型错误',
+        icon: 'none',
+        duration: 1500
+      })
+    }
+  }, 500)
 }
 
 // 检查登录状态的通用函数
@@ -449,9 +504,15 @@ function handleWishClick() {
 // 测评结果点击处理
 function goTestResults() {
   if (checkLoginAndShowModal('测评结果')) {
-    // 跳转到测评结果页面
-    uni.navigateTo({
-      url: '/pages/test/results'
+    showLoadingWithProgress(1200)
+    // 等待进度条动画结束后再跳转
+    const unwatch = watch(isPageLoading, (val) => {
+      if (!val) {
+        unwatch()
+        uni.navigateTo({
+          url: '/pages/test/results',
+        })
+      }
     })
   }
 }
@@ -491,6 +552,105 @@ function closeLogin() {
 /* 你可以根据实际需求自定义样式，以下为简化版 */
 .bg-gradient { background: linear-gradient(135deg, #ecb198 0%, #e2beeb 50%, #b5d9ee 100%); min-height: 100vh; }
 .header { display: flex; align-items: center; justify-content: center; padding: 24rpx; background: rgba(255,255,255,0.8); border-bottom: 1px solid #f8bbd0; }
+.main-title {
+  font-size: 54rpx;
+  font-weight: 900;
+  color: #fffd93;
+  letter-spacing: 6rpx;
+  margin-bottom: 12rpx;
+  text-align: center;
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Arial', 'Helvetica Neue', 'sans-serif';
+  text-shadow: 0 4rpx 12rpx #f8bbd0, 0 2rpx 0 #fff;
+}
+
+.global-loading-mask {
+  position: fixed;
+  z-index: 2000;
+  left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(255,255,255,0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.loading-progress-bar-wrap-bottom {
+  position: absolute;
+  left: 0;
+  bottom: 38rpx;
+  width: 100vw;
+  height: 24rpx;
+  background: transparent;
+  z-index: 2100;
+}
+.loading-progress-bar-info {
+  position: absolute;
+  left: 0;
+  bottom: 62rpx;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  z-index: 2101;
+}
+.loading-progress-text {
+  font-size: 22rpx;
+  color: #b48be7;
+  font-weight: 600;
+  background: rgba(255,255,255,0.85);
+  border-radius: 8rpx;
+  padding: 2rpx 16rpx;
+  letter-spacing: 2rpx;
+}
+.loading-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #ff97c3 0%, #cc01ff 100%);
+  border-radius: 20rpx;
+  transition: width 0.18s linear;
+}
+.loading-logo {
+  width: 120rpx;
+  height: 120rpx;
+  margin-bottom: 24rpx;
+  border-radius: 32rpx;
+  box-shadow: 0 4rpx 16rpx #f8bbd0;
+}
+.loading-title {
+  font-size: 38rpx;
+  font-weight: 700;
+  color: #222;
+  letter-spacing: 4rpx;
+  margin-bottom: 18rpx;
+  text-align: center;
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Arial', 'Helvetica Neue', 'sans-serif';
+  text-shadow: 0 2rpx 8rpx #f7f1f3, 0 1rpx 0 #fff;
+}
+.loading-spinner {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 18rpx;
+}
+.loading-spinner .dot {
+  width: 22rpx;
+  height: 22rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffb6d5 0%, #fffd93 100%);
+  animation: loading-bounce 1s infinite alternate;
+}
+.loading-spinner .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.loading-spinner .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes loading-bounce {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-18rpx); opacity: 0.5; }
+}
+.loading-text {
+  font-size: 28rpx;
+  color: #ff7a7a;
+  letter-spacing: 2rpx;
+  font-weight: 600;
+}
 .slogan { font-size: 36rpx; color: #666; font-weight: 500; }
 .main-content { padding: 32rpx 24rpx 160rpx; } /* 增加底部间距避免被导航栏遮挡 */
 .section { margin-bottom: 32rpx; }
