@@ -332,7 +332,7 @@ let scrollInterval = null
 let progressTimer = null
 
 // 封装全局 loading 动画启动
-function showLoadingWithProgress(duration = 3000) {
+function showLoadingWithProgress(duration = 1700) {
   isPageLoading.value = true
   progressBarWidth.value = 0
   if (progressTimer) clearInterval(progressTimer)
@@ -351,7 +351,7 @@ function showLoadingWithProgress(duration = 3000) {
 }
 
 onMounted(() => {
-  showLoadingWithProgress(3000)
+  showLoadingWithProgress(2500)
   // 检查登录状态
   const token = uni.getStorageSync('token')
   const userInfo = uni.getStorageSync('userInfo')
@@ -716,7 +716,7 @@ function closeLogin() {
   writing-mode: vertical-rl;
   text-orientation: mixed;
   font-size: 40rpx;
-  color: #d81b60;
+  color: #d31158;
   font-weight: bold;
   margin-bottom: 8rpx;
   letter-spacing: 2rpx;

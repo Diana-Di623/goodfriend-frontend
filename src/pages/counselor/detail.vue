@@ -131,10 +131,7 @@
     <!-- 底部操作栏 -->
     <view class="bottom-actions">
       <button class="action-btn secondary" style="flex: 1;" disabled>
-        <view style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 88rpx;">
-          <text style="font-size: 22rpx; color: #666;">服务热线</text>
-          <text style="font-size: 32rpx; letter-spacing: 2rpx; writing-mode: vertical-rl; color: #007aff;">1998983938</text>
-        </view>
+        <text style="font-size: 25rpx;">服务热线：1998983938</text>
       </button>
       <button class="action-btn primary" @click="makeAppointment">
         立即预约
