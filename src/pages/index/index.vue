@@ -32,7 +32,7 @@
           <text>专业团队</text>
           <text class="badge">认证心理咨询师在线支持</text>
         </view>
-        <view class="counselor-scroll">
+        <view class="counselor-scroll-with-hotline">
           <view class="counselor-container">
             <view v-for="(counselor, idx) in visibleCounselors" :key="idx" class="counselor-card" @click="handleCounselorClick(counselor)">
               <image class="counselor-avatar" :src="counselor.avatar" />
@@ -45,6 +45,12 @@
                   <text class="meta-item">⭐{{ counselor.rating }}</text>
                 </view>
               </view>
+            </view>
+          </view>
+          <view class="hotline-bar">
+            <text class="hotline-title">心理咨询热线</text>
+            <view class="hotline-number-vertical">
+              <text v-for="(num, i) in hotlineDigits" :key="i" class="hotline-digit">{{ num }}</text>
             </view>
           </view>
         </view>
@@ -179,7 +185,13 @@ const progressBarWidth = ref(0) // 加载进度条宽度百分比
 const slogans = [
   '每个情绪都值得被倾听',
   `你今天的心理电量是多少呀？`,
-  '专业团队24小时守护'
+  '专业团队24小时守护',
+  '随时随地倾诉心声',
+  '让心理咨询更有温度',
+  '你的心理健康，我们来守护',
+  '倾诉是最好的解药',
+  '心理咨询，从这里开始',
+  '让心灵不再孤单'
 ]
 
 const counselors = [
@@ -309,6 +321,10 @@ const visibleCounselors = computed(() => {
   }
   return result
 })
+
+// 热线号码竖排分布
+const hotlineNumber = '19988889898'
+const hotlineDigits = hotlineNumber.split('')
 
 
 let interval = null
@@ -656,19 +672,72 @@ function closeLogin() {
 .section { margin-bottom: 32rpx; }
 .section-title { display: flex; align-items: center; gap: 12rpx; font-size: 32rpx; font-weight: bold; color: #333; margin-bottom: 16rpx; }
 .badge { background: #fce4ec; color: #d81b60; font-size: 22rpx; border-radius: 8rpx; padding: 4rpx 12rpx; }
-.counselor-scroll { width: 100%; height: auto; overflow: hidden; }
-.counselor-container { display: flex; flex-direction: column; gap: 16rpx; }
-.counselor-card { 
-  display: flex; 
+.counselor-scroll-with-hotline {
+  display: flex;
   flex-direction: row;
-  align-items: center; 
-  background: #fff; 
-  border-radius: 16rpx; 
-  padding: 32rpx; 
-  box-shadow: 0 2rpx 8rpx #f8bbd0; 
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+}
+.counselor-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  flex: 1;
+}
+.counselor-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  box-shadow: 0 2rpx 8rpx #f8bbd0;
   width: 91%;
   min-height: 80rpx;
   margin-bottom: 0;
+}
+.hotline-bar {
+  width: 60rpx;
+  min-width: 60rpx;
+  background: #fce4ec;
+  border-radius: 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  margin-left: 12rpx;
+  box-shadow: 0 2rpx 8rpx #f8bbd0;
+  padding: 16rpx 0;
+  height: 100%;
+  min-height: 420rpx;
+}
+.hotline-title {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 40rpx;
+  color: #d81b60;
+  font-weight: bold;
+  margin-bottom: 8rpx;
+  letter-spacing: 2rpx;
+}
+.hotline-number-vertical {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  height: 100%;
+  width: 100%;
+  padding: 0;
+}
+.hotline-digit {
+  font-size: 40rpx;
+  color: #1976d2;
+  font-weight: 700;
+  line-height: 1.2;
+  width: 100%;
+  text-align: center;
 }
 .counselor-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; margin-right: 24rpx; }
 .counselor-info { flex: 1; text-align: left; }

@@ -104,11 +104,11 @@
         </view>
       </view>
 
-      <!-- 个人简介 -->
+      <!-- 兴趣爱好 -->
       <view class="form-item">
-        <text class="label">个人简介📝</text>
+        <text class="label">兴趣爱好📝</text>
         <textarea
-          v-model="userInfo.bio"
+          v-model="userInfo.hobbies"
           class="textarea-field"
           placeholder="简单介绍一下自己..."
           maxlength="200"
@@ -221,7 +221,7 @@ function loadUserInfo() {
   }
 }
 
-// 选择性别 - 严格限制为男女两个选项
+// 选择性别
 function selectGender(gender) {
   if (isValidGender(gender)) {
     userInfo.value.gender = gender
@@ -535,11 +535,22 @@ function handleLogout() {
   overflow: hidden;
 }
 
+
+
 .form-item {
   padding: 32rpx;
   border-bottom: 1rpx solid #f5f5f5;
   display: flex;
   align-items: center;
+}
+
+/* 兴趣爱好区域 label 靠上贴边框 */
+.form-item textarea.textarea-field {
+  margin-top: 0;
+}
+.form-item .label {
+  align-self: flex-start;
+  margin-top: 2rpx;
 }
 
 .form-item:last-child {
@@ -551,7 +562,7 @@ function handleLogout() {
 }
 
 .label {
-  width: 140rpx;
+  width: 180rpx;
   font-size: 28rpx; /* 中号字体 */
   color: #333;
   font-weight: 500;
