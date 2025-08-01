@@ -1,106 +1,201 @@
 <template>
   <view class="results-page">
-    <!-- 使用系统导航栏和底部tabBar，无需自定义底部占位 -->
-
-    <!-- 测评历史概览 -->
-    <view class="overview-section">
-      <view class="overview-card">
-        <view class="overview-header">
-          <text class="overview-title">测评历史概览</text>
-          <text class="overview-count">共 {{ testResults.length }} 次测评</text>
-        </view>
-        <view v-if="testResults.length > 0" class="stats-grid">
-          <view class="stat-item">
-            <text class="stat-number">{{ sdsCount }}</text>
-            <text class="stat-label">SDS抑郁测评</text>
+    <!-- 最近结果 -->
+    <view class="latest-results-section">
+      <view class="results-header">
+        <text class="page-title">测评结果</text>
+      </view>
+      
+      <!-- 双卡片展示 -->
+      <view class="results-grid">
+        <!-- SAS 焦虑自评卡片 -->
+        <view class="result-card sas-card">
+          <view class="card-header">
+            <text class="card-title sas-title">SAS 焦虑自评</text>
           </view>
-          <view class="stat-item">
-            <text class="stat-number">{{ sasCount }}</text>
-            <text class="stat-label">SAS焦虑测评</text>
+          <view class="card-content">
+            <text v-if="latestSasResult" class="score-number sas-score">{{ latestSasResult.score }}</text>
+            <text v-else class="score-number sas-score">--</text>
+            <view v-if="latestSasResult" class="level-badge" :class="getLevelBadgeColor(latestSasResult.level)">
+              <text class="badge-text">{{ latestSasResult.level }}</text>
+            </view>
+            <view v-else class="level-badge badge-gray">
+              <text class="badge-text">暂无数据</text>
+            </view>
+            <view class="trend-info">
+              <text class="trend-icon"></text>
+              <text class="trend-text">{{ latestSasResult ? '最新结果' : '暂无测评' }}</text>
+            </view>
           </view>
         </view>
-        <view v-else class="empty-tip" style="text-align:center;color:#aaa;padding:32rpx 0;">
-          暂无测评记录，快去完成一次测评吧！
+        
+        <!-- SDS 抑郁自评卡片 -->
+        <view class="result-card sds-card">
+          <view class="card-header">
+            <text class="card-title sds-title">SDS 抑郁自评</text>
+          </view>
+          <view class="card-content">
+            <text v-if="latestSdsResult" class="score-number sds-score">{{ latestSdsResult.score }}</text>
+            <text v-else class="score-number sds-score">--</text>
+            <view v-if="latestSdsResult" class="level-badge" :class="getLevelBadgeColor(latestSdsResult.level)">
+              <text class="badge-text">{{ latestSdsResult.level }}</text>
+            </view>
+            <view v-else class="level-badge badge-gray">
+              <text class="badge-text">暂无数据</text>
+            </view>
+            <view class="trend-info">
+              <text class="trend-icon"></text>
+              <text class="trend-text">{{ latestSdsResult ? '最新结果' : '暂无测评' }}</text>
+            </view>
+          </view>
         </view>
+      </view>
+      
+      <!-- 测评时间 -->
+      <view v-if="latestSasResult || latestSdsResult" class="assessment-time">
+        <text class="time-icon">📅</text>
+        <text class="time-text">{{ getLatestDate() }}</text>
+        <text class="time-icon">🕐</text>
+        <text class="time-text">{{ getLatestTime() }}</text>
+      </view>
+      <view v-else class="assessment-time">
+        <text class="time-icon">💡</text>
+        <text class="time-text">完成测评后查看结果</text>
+      </view>
+      
+      <!-- 专业建议 -->
+      <view class="suggestion-card">
+        <view class="suggestion-header">
+          <text class="suggestion-title">专业建议</text>
+          <view v-if="latestSasResult || latestSdsResult" class="suggestion-status">
+            <text class="status-text">基于您的测评结果</text>
+          </view>
+        </view>
+        <text class="suggestion-content">
+          {{ getProfessionalAdvice() }}
+        </text>
       </view>
     </view>
 
-    <!-- 最新结果 -->
-    <view class="latest-section" v-if="latestResult">
-      <view class="latest-card">
-        <view class="latest-header">
-          <text class="latest-title">最新测评结果</text>
-          <text class="latest-date">{{ formatDate(latestResult.date) }}</text>
-        </view>
-        <view class="latest-content">
-          <view class="latest-score">
-            <text class="score-type">{{ latestResult.testType }}</text>
-            <text class="score-value">{{ latestResult.standardScore }}分</text>
-            <text class="score-level" :class="getLevelClass(latestResult.standardScore, latestResult.testType)">
-              {{ latestResult.level }}
-            </text>
-          </view>
-          <text class="latest-interpretation">{{ latestResult.interpretation }}</text>
-        </view>
-      </view>
-    </view>
+    <!-- 分隔线 -->
+    <view class="section-divider"></view>
 
     <!-- 推荐咨询师 -->
     <view class="counselor-section">
-      <view class="counselor-header">
-        <text class="counselor-title">推荐咨询师</text>
-        <text class="counselor-subtitle">基于您的测评结果为您推荐</text>
+      <view class="section-header">
+        <text class="section-title">推荐咨询师</text>
       </view>
+      
       <view class="counselor-list">
-        <view 
-          v-for="(counselor, index) in recommendedCounselors" 
-          :key="index"
-          class="counselor-card"
-          @click="handleCounselorClick(counselor)"
-        >
-          <image class="counselor-avatar" :src="counselor.avatar" />
-          <view class="counselor-info">
-            <view class="counselor-name">{{ counselor.name }}</view>
-            <view class="counselor-level">{{ counselor.level }}</view>
-            <view class="counselor-specialty">擅长：{{ counselor.specialty }}</view>
-            <view class="counselor-meta">
-              <text class="meta-item">{{ counselor.gender }}</text>
-              <text class="meta-item">{{ counselor.location }}</text>
-              <text class="meta-item">⭐{{ counselor.rating }}</text>
+        <!-- 咨询师1 -->
+        <view class="counselor-card featured-counselor" @click="gotoCounselorDetail('1')">
+          <view class="recommend-reason">
+            <text class="reason-text">匹配度95%</text>
+          </view>
+          <view class="counselor-content">
+            <view class="counselor-avatar">
+              <text class="avatar-text">李</text>
+            </view>
+            <view class="counselor-info">
+              <view class="counselor-header">
+                <text class="counselor-name">李心怡</text>
+                <view class="rating-info">
+                  <text class="star-icon">⭐</text>
+                  <text class="rating-text">4.9</text>
+                </view>
+              </view>
+              <text class="counselor-level">国家二级心理咨询师 · 8年经验</text>
+              <text class="counselor-specialty">擅长：焦虑抑郁、情感问题、职场压力</text>
             </view>
           </view>
-          <view class="match-badge">
-            <text class="match-text">{{ counselor.matchReason }}</text>
+        </view>
+        
+        <!-- 咨询师2 -->
+        <view class="counselor-card" @click="gotoCounselorDetail('2')">
+          <view class="recommend-reason">
+            <text class="reason-text">专业对口</text>
+          </view>
+          <view class="counselor-content">
+            <view class="counselor-avatar">
+              <text class="avatar-text">王</text>
+            </view>
+            <view class="counselor-info">
+              <view class="counselor-header">
+                <text class="counselor-name">王志强</text>
+                <view class="rating-info">
+                  <text class="star-icon">⭐</text>
+                  <text class="rating-text">4.8</text>
+                </view>
+              </view>
+              <text class="counselor-level">国家一级心理咨询师 · 12年经验</text>
+              <text class="counselor-specialty">擅长：认知行为疗法、家庭治疗</text>
+            </view>
           </view>
         </view>
       </view>
     </view>
+
+    <!-- 分隔线 -->
+    <view class="section-divider"></view>
+
     <!-- 历史记录 -->
     <view class="history-section">
       <view class="history-header">
-        <text class="history-title">历史记录</text>
-      </view>
-      <view class="history-list">
-        <view 
-          v-for="(result, index) in displayResults" 
-          :key="index"
-          class="history-item"
-          @click="viewResult(result)"
-        >
-          <view class="history-main">
-            <view class="history-type">{{ result.testType }}</view>
-            <view class="history-score">{{ result.standardScore }}分</view>
-            <view class="history-level" :class="getLevelClass(result.standardScore, result.testType)">
-              {{ result.level }}
-            </view>
-          </view>
-          <view class="history-date">{{ formatDate(result.date) }}</view>
+        <text class="section-title">历史记录</text>
+        <view v-if="historyRecords.length > 0" class="clear-btn" @click="showClearDialog">
+          <text class="clear-icon">🗑️</text>
+          <text class="clear-text">清空记录</text>
         </view>
       </view>
-    </view>
-    <!-- 调试按钮，点击弹窗显示 testResults 和 displayResults -->
-    <view style="padding:24rpx;text-align:center;">
-      <button @click="showDebugInfo" style="background:#2196f3;color:#fff;border-radius:8rpx;padding:12rpx 32rpx;">调试：显示测评数据</button>
+      
+      <view v-if="historyRecords.length === 0" class="empty-state">
+        <text class="empty-title">暂无历史记录</text>
+        <text class="empty-subtitle">完成测评后，记录将显示在这里</text>
+      </view>
+      
+      <view v-else class="history-list">
+        <view
+          v-for="(record, index) in historyRecords"
+          :key="record.id"
+          class="history-item"
+          :class="getTypeBgClass(record.type)"
+        >
+          <view class="history-item-header">
+            <view class="type-info">
+              <view class="type-badge" :class="getTypeBadgeClass(record.type)">
+                <text class="type-text">{{ record.type }}</text>
+              </view>
+              <text class="type-name">{{ record.typeName }}</text>
+            </view>
+            <view class="date-time-info">
+              <text class="date-icon">📅</text>
+              <text class="date-text">{{ record.date }}</text>
+              <text class="time-icon">🕐</text>
+              <text class="time-text">{{ record.time }}</text>
+            </view>
+          </view>
+          
+          <view class="history-item-content">
+            <view class="score-info">
+              <view class="score-display">
+                <text class="score-value" :class="getScoreColorClass(record.score, record.type)">
+                  {{ record.score }}
+                </text>
+                <text class="score-label">分数</text>
+              </view>
+              <view class="level-display">
+                <view class="level-badge" :class="getLevelBadgeColor(record.level)">
+                  <text class="level-text">{{ record.level }}</text>
+                </view>
+                <text class="level-label">等级</text>
+              </view>
+            </view>
+            <view class="detail-btn" @click="viewDetail(record)">
+              <text class="detail-text">查看详情</text>
+            </view>
+          </view>
+        </view>
+      </view>
     </view>
     <!-- 底部功能栏（合并唯一一个） -->
     <view class="bottom-nav">
@@ -128,591 +223,782 @@
 </template>
 
 <script setup>
-// 未读消息数量（如 profile.vue）
+import { ref, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+
+// 历史记录数据 - 从localStorage获取实际测评记录
+const historyRecords = ref([])
+
+// 未读消息数量
 const unreadMessageCount = ref(15)
 
-function goHome() {
-  uni.navigateTo({ url: '/pages/index/index' })
-}
-function handleWishClick() {
-  uni.navigateTo({ url: '/pages/wish/wish' })
-}
-function goProfile() {
-  uni.navigateTo({ url: '/pages/profile/profile' })
-}
-import { ref, onMounted, computed } from 'vue'
+// 最新测评结果
+const latestSasResult = ref(null)
+const latestSdsResult = ref(null)
 
-const testResults = ref([])
-const selectedType = ref('all')
-const latestResult = ref(null)
-const chartContext = ref(null)
-
-// 计算统计数据
-const sdsCount = computed(() => {
-  return testResults.value.filter(r => r.testType === 'SDS').length
-})
-
-const sasCount = computed(() => {
-  return testResults.value.filter(r => r.testType === 'SAS').length
-})
-
-// 根据筛选条件显示结果
-const displayResults = computed(() => {
-  if (selectedType.value === 'all') {
-    return testResults.value.slice().reverse()
+// 获取专业建议
+function getProfessionalAdvice() {
+  const sasScore = latestSasResult.value?.score || 0
+  const sdsScore = latestSdsResult.value?.score || 0
+  const sasLevel = latestSasResult.value?.level || ''
+  const sdsLevel = latestSdsResult.value?.level || ''
+  
+  console.log('生成专业建议:', { sasScore, sdsScore, sasLevel, sdsLevel })
+  
+  // 如果没有测评数据
+  if (!latestSasResult.value && !latestSdsResult.value) {
+    return '建议您完成心理测评，以便我们为您提供更精准的专业建议和心理健康指导。'
   }
-  return testResults.value.filter(r => r.testType === selectedType.value).slice().reverse()
-})
-
-// 推荐咨询师
-const recommendedCounselors = ref([
-  {
-    name: '张雨萌',
-    level: '专家咨询师',
-    specialty: '青少年心理',
-    gender: '女',
-    location: '广州·天河',
-    rating: 5.0,
-    avatar: '/static/logo.png',
-    matchReason: '专业匹配'
-  },
-  {
-    name: '李心怡',
-    level: '高级咨询师',
-    specialty: '家庭治疗',
-    gender: '女',
-    location: '北京·朝阳',
-    rating: 4.9,
-    avatar: '/static/logo.png',
-    matchReason: '好评推荐'
-  },
-  {
-    name: '王明轩',
-    level: '资深咨询师',
-    specialty: '情感关系',
-    gender: '男',
-    location: '上海·浦东',
-    rating: 4.8,
-    avatar: '/static/logo.png',
-    matchReason: '经验丰富'
+  
+  // 根据分数和等级给出建议
+  let advice = ''
+  let severity = 0 // 严重程度评分
+  
+  // 评估焦虑程度 (SAS标准分)
+  if (sasScore >= 70) severity += 3      // 重度焦虑
+  else if (sasScore >= 60) severity += 2 // 中度焦虑 
+  else if (sasScore >= 50) severity += 1 // 轻度焦虑
+  
+  // 评估抑郁程度 (SDS标准分)
+  if (sdsScore >= 73) severity += 3      // 重度抑郁
+  else if (sdsScore >= 63) severity += 2 // 中度抑郁
+  else if (sdsScore >= 53) severity += 1 // 轻度抑郁
+  
+  if (severity === 0) {
+    advice = '您的心理状态良好！建议继续保持规律作息、适度运动和良好的社交关系。可以尝试冥想、阅读等活动来维持心理健康。'
+  } else if (severity <= 2) {
+    advice = '您存在轻度的心理压力。建议保持规律作息，进行适度运动如散步、瑜伽等。可以尝试深呼吸、放松训练等缓解技巧。建议与亲友多交流，必要时可咨询心理专业人员。'
+  } else if (severity <= 4) {
+    advice = '您的测评结果显示存在中度的焦虑或抑郁情绪。建议您及时调整生活方式，保证充足睡眠，避免过度劳累。强烈建议寻求专业心理咨询师的帮助，进行系统的心理干预。'
+  } else {
+    advice = '您的测评结果显示存在较为严重的心理健康问题。建议您立即寻求专业心理医生或心理咨询师的帮助。同时，请告知家人朋友您的状况，获得更多支持。必要时可考虑药物治疗配合心理治疗。'
   }
-])
-
-onMounted(() => {
-  loadTestResults()
-  if (testResults.value.length > 0) {
-    latestResult.value = testResults.value[testResults.value.length - 1]
-    drawChart()
+  
+  // 添加具体症状的建议
+  if (sasLevel.includes('重度') || sdsLevel.includes('重度')) {
+    advice += '请特别注意：如有自伤或自杀想法，请立即联系心理危机干预热线或前往医院急诊科。'
   }
-})
-
-function loadTestResults() {
-  let results = uni.getStorageSync('testResults') || []
-  if (!results || results.length === 0) {
-    // 初始化生成3条假数据
-    results = [
-      {
-        testType: 'SDS',
-        rawScore: 40,
-        standardScore: 50,
-        level: '轻度',
-        answers: [],
-        date: new Date(Date.now() - 86400000 * 2).toISOString(),
-        interpretation: '轻度抑郁，建议关注情绪变化。',
-        suggestion: '适当休息，保持良好作息。'
-      },
-      {
-        testType: 'SAS',
-        rawScore: 35,
-        standardScore: 44,
-        level: '正常',
-        answers: [],
-        date: new Date(Date.now() - 86400000 * 1).toISOString(),
-        interpretation: '无明显焦虑症状。',
-        suggestion: '继续保持积极心态。'
-      },
-      {
-        testType: 'SDS',
-        rawScore: 55,
-        standardScore: 69,
-        level: '中度',
-        answers: [],
-        date: new Date().toISOString(),
-        interpretation: '中度抑郁，建议寻求专业帮助。',
-        suggestion: '建议咨询心理医生。'
-      }
-    ]
-    uni.setStorageSync('testResults', results)
-  }
-  testResults.value = results.sort((a, b) => new Date(a.date) - new Date(b.date))
+  
+  return advice
 }
 
-function drawChart() {
-  const query = uni.createSelectorQuery()
-  query.select('#trendChart').fields({ node: true, size: true }).exec((res) => {
-    if (res[0]) {
-      const canvas = res[0].node
-      const ctx = canvas.getContext('2d')
+// 加载历史记录
+function loadHistoryRecords() {
+  console.log('开始加载历史记录...')
+  try {
+    const stored = uni.getStorageSync('testResults')
+    console.log('从存储中获取的数据:', stored)
+    
+    if (stored && Array.isArray(stored)) {
+      // 按时间倒序排列，最新的在前面
+      const sortedResults = stored.sort((a, b) => {
+        const dateA = new Date(a.date)
+        const dateB = new Date(b.date)
+        return dateB - dateA
+      })
       
-      const dpr = uni.getSystemInfoSync().pixelRatio
-      canvas.width = res[0].width * dpr
-      canvas.height = res[0].height * dpr
-      ctx.scale(dpr, dpr)
+      // 转换数据格式，兼容不同的保存格式
+      historyRecords.value = sortedResults.map((item, index) => {
+        // 处理日期时间格式
+        const date = new Date(item.date)
+        const dateStr = date.toISOString().split('T')[0]
+        const timeStr = date.toTimeString().split(' ')[0].slice(0, 5)
+        
+        // 统一数据格式
+        const normalizedItem = {
+          id: item.id || Date.now() + index,
+          date: dateStr,
+          time: timeStr,
+          // 兼容不同的字段名
+          type: item.type || item.testType || 'SAS',
+          score: item.score || item.standardScore || item.rawScore || 0,
+          level: item.level || '未知',
+          typeName: (item.type || item.testType) === 'SAS' ? '焦虑自评量表' : '抑郁自评量表',
+        }
+        
+        console.log('转换后的记录:', normalizedItem)
+        return normalizedItem
+      })
       
-      drawTrendChart(ctx, res[0].width, res[0].height)
+      console.log('处理后的历史记录:', historyRecords.value)
+      
+      // 更新最新结果显示
+      updateLatestResults(historyRecords.value)
+    } else {
+      console.log('没有找到历史记录数据')
+      historyRecords.value = []
+      latestSasResult.value = null
+      latestSdsResult.value = null
+    }
+  } catch (error) {
+    console.error('加载历史记录失败:', error)
+    historyRecords.value = []
+    latestSasResult.value = null
+    latestSdsResult.value = null
+  }
+}
+
+// 更新最新测评结果显示
+function updateLatestResults(results) {
+  // 找到最新的SAS和SDS结果
+  latestSasResult.value = results.find(item => item.type === 'SAS') || null
+  latestSdsResult.value = results.find(item => item.type === 'SDS') || null
+  
+  console.log('更新最新结果:', {
+    sasResult: latestSasResult.value,
+    sdsResult: latestSdsResult.value,
+    totalResults: results.length
+  })
+}
+
+// 清空历史记录
+function clearHistory() {
+  historyRecords.value = []
+  latestSasResult.value = null
+  latestSdsResult.value = null
+  
+  try {
+    uni.removeStorageSync('testResults')
+  } catch (error) {
+    console.error('清空历史记录失败:', error)
+  }
+  uni.showToast({ title: '历史记录已清空', icon: 'success' })
+}
+
+// 跳转到咨询师详情页
+function gotoCounselorDetail(counselorId) {
+  console.log('跳转到咨询师详情页，ID:', counselorId)
+  uni.navigateTo({ 
+    url: `/pages/counselor/detail?id=${counselorId}`,
+    fail: (err) => {
+      console.error('跳转失败:', err)
+      uni.showToast({
+        title: '页面跳转失败',
+        icon: 'none'
+      })
+    },
+    success: () => {
+      console.log('跳转成功')
     }
   })
 }
 
-function drawTrendChart(ctx, width, height) {
-  const filteredData = selectedType.value === 'all' 
-    ? testResults.value 
-    : testResults.value.filter(r => r.testType === selectedType.value)
-  
-  if (filteredData.length === 0) return
-  
-  // 清空画布
-  ctx.clearRect(0, 0, width, height)
-  
-  // 设置边距
-  const margin = { top: 20, right: 20, bottom: 40, left: 40 }
-  const chartWidth = width - margin.left - margin.right
-  const chartHeight = height - margin.top - margin.bottom
-  
-  // ...绘制网格线等图表内容...
+// 获取最新测评日期
+function getLatestDate() {
+  if (latestSasResult.value && latestSdsResult.value) {
+    const sasDate = new Date(`${latestSasResult.value.date} ${latestSasResult.value.time}`)
+    const sdsDate = new Date(`${latestSdsResult.value.date} ${latestSdsResult.value.time}`)
+    return sasDate >= sdsDate ? latestSasResult.value.date : latestSdsResult.value.date
+  }
+  if (latestSasResult.value) return latestSasResult.value.date
+  if (latestSdsResult.value) return latestSdsResult.value.date
+  return ''
 }
 
-// 日期格式化方法，修复模板报错
-function formatDate(dateStr) {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+// 获取最新测评时间
+function getLatestTime() {
+  if (latestSasResult.value && latestSdsResult.value) {
+    const sasDate = new Date(`${latestSasResult.value.date} ${latestSasResult.value.time}`)
+    const sdsDate = new Date(`${latestSdsResult.value.date} ${latestSdsResult.value.time}`)
+    return sasDate >= sdsDate ? latestSasResult.value.time : latestSdsResult.value.time
+  }
+  if (latestSasResult.value) return latestSasResult.value.time
+  if (latestSdsResult.value) return latestSdsResult.value.time
+  return ''
 }
 
-
-// 咨询师卡片点击跳转详情页
-function handleCounselorClick(counselor) {
-  uni.navigateTo({
-    url: `/pages/counselor/detail?name=${encodeURIComponent(counselor.name)}`
+// 显示清空确认对话框
+function showClearDialog() {
+  uni.showModal({
+    title: '确认清空历史记录',
+    content: '此操作将永久删除所有历史测评记录，无法恢复。您确定要继续吗？',
+    success: (res) => {
+      if (res.confirm) {
+        clearHistory()
+      }
+    }
   })
 }
 
-// 历史记录点击事件，弹窗显示详情
-function viewResult(result) {
+// 获取分数颜色类名
+function getScoreColorClass(score, type) {
+  console.log('获取分数颜色:', { score, type })
+  if (type === "SAS") {
+    // SAS焦虑自评量表评分标准
+    if (score < 50) return "score-green"    // 正常
+    if (score < 60) return "score-yellow"   // 轻度焦虑
+    if (score < 70) return "score-purple"   // 中度焦虑  
+    return "score-red"                      // 重度焦虑
+  } else if (type === "SDS") {
+    // SDS抑郁自评量表评分标准
+    if (score < 53) return "score-green"    // 正常
+    if (score < 63) return "score-yellow"   // 轻度抑郁
+    if (score < 73) return "score-purple"   // 中度抑郁
+    return "score-red"                      // 重度抑郁
+  }
+  // 默认颜色
+  return "score-green"
+}
+
+// 获取类型背景类名
+function getTypeBgClass(type) {
+  return type === "SAS" ? "sas-bg" : "sds-bg"
+}
+
+// 获取类型徽章类名
+function getTypeBadgeClass(type) {
+  return type === "SAS" ? "sas-badge" : "sds-badge"
+}
+
+// 获取等级徽章颜色类名
+function getLevelBadgeColor(level) {
+  if (level === "正常") return "badge-green"
+  if (level.includes("轻度")) return "badge-yellow"
+  if (level.includes("中度")) return "badge-purple"
+  return "badge-red"
+}
+
+// 查看详情
+function viewDetail(record) {
   uni.showModal({
     title: '测评详情',
-    content: `类型: ${result.testType}\n分数: ${result.standardScore}\n等级: ${result.level}\n时间: ${formatDate(result.date)}\n解读: ${result.interpretation}`,
+    content: `类型: ${record.typeName}\n分数: ${record.score}\n等级: ${record.level}\n时间: ${record.date} ${record.time}`,
     showCancel: false
   })
 }
 
-// 调试按钮事件，弹窗显示 testResults 和 displayResults
-function showDebugInfo() {
-  uni.showModal({
-    title: '调试信息',
-    content: `testResults: ${JSON.stringify(testResults.value, null, 2)}\n\ndisplayResults: ${JSON.stringify(displayResults.value, null, 2)}`,
-    showCancel: false
-  })
+// 导航方法
+function goHome() {
+  uni.navigateTo({ url: '/pages/index/index' })
 }
+
+function handleWishClick() {
+  uni.navigateTo({ url: '/pages/wish/wish' })
+}
+
+function goProfile() {
+  uni.navigateTo({ url: '/pages/profile/profile' })
+}
+
+onMounted(() => {
+  // 页面加载时获取实际的历史记录
+  loadHistoryRecords()
+  
+  // 开发调试：如果没有数据，添加测试数据
+  setTimeout(() => {
+    if (historyRecords.value.length === 0) {
+      console.log('没有测评数据，是否需要添加测试数据？')
+      addTestDataIfNeeded()
+    }
+  }, 500)
+})
+
+// 添加测试数据（仅用于调试）
+function addTestDataIfNeeded() {
+  try {
+    const testData = [
+      {
+        testType: 'SAS',
+        standardScore: 45,
+        level: '轻度焦虑',
+        date: new Date().toISOString(),
+        rawScore: 36
+      },
+      {
+        testType: 'SDS', 
+        standardScore: 58,
+        level: '轻度抑郁',
+        date: new Date(Date.now() - 3600000).toISOString(), // 1小时前
+        rawScore: 46
+      }
+    ]
+    
+    console.log('正在添加测试数据...')
+    uni.setStorageSync('testResults', testData)
+    loadHistoryRecords() // 重新加载数据
+  } catch (error) {
+    console.error('添加测试数据失败:', error)
+  }
+}
+
+// 页面显示时重新加载数据（从其他页面返回时）
+onShow(() => {
+  loadHistoryRecords()
+})
 
 </script>
 
 <style scoped>
 .results-page {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: #f5f5f5;
   padding-bottom: 120rpx;
 }
 
-/* 顶部导航 */
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24rpx 32rpx;
+/* 最近结果区域 */
+.latest-results-section {
   background: #fff;
-  border-bottom: 1rpx solid #eee;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.back-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 80rpx;
-  height: 80rpx;
-}
-
-.back-btn .icon {
-  font-size: 48rpx;
-  color: #333;
-}
-
-.title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #333;
-  flex: 1;
-  text-align: center;
-  margin-left: -80rpx; /* 补偿左侧按钮的宽度 */
-}
-
-.clear-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 80rpx;
-  height: 80rpx;
-}
-
-.clear-text {
-  font-size: 28rpx;
-  color: #f44336;
-}
-
-/* 概览卡片 */
-.overview-section {
-  padding: 24rpx;
-}
-
-.overview-card {
-  background: #fff;
-  border-radius: 16rpx;
   padding: 32rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
 }
 
-.overview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24rpx;
+.results-header {
+  margin-bottom: 32rpx;
 }
 
-.overview-title {
-  font-size: 32rpx;
+.page-title {
+  font-size: 40rpx;
   font-weight: 600;
-  color: #333;
+  color: #1f2937;
 }
 
-.overview-count {
-  font-size: 26rpx;
-  color: #666;
-} 
-
-.stats-grid {
-  display: flex;
+/* 双卡片网格 */
+.results-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 32rpx;
+  margin-bottom: 32rpx;
 }
 
-.stat-item {
-  flex: 1;
-  text-align: center;
-  padding: 24rpx;
-  background: #f8f9fa;
-  border-radius: 12rpx;
-}
-
-.stat-number {
-  display: block;
-  font-size: 48rpx;
-  font-weight: 600;
-  color: #2196f3;
-  margin-bottom: 8rpx;
-}
-
-.stat-label {
-  font-size: 24rpx;
-  color: #666;
-}
-
-/* 图表卡片 */
-.chart-section {
-  padding: 0 24rpx 24rpx;
-}
-
-.chart-card {
+.result-card {
   background: #fff;
   border-radius: 16rpx;
-  padding: 32rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
+  padding: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.1);
 }
 
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24rpx;
+.sas-card {
+  border: 2rpx solid #ff9800;
+  background: linear-gradient(135deg, #fffaf5 0%, #ffe8ce 100%);
 }
 
-.chart-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #333;
-}
-
-.chart-filters {
-  display: flex;
-  gap: 16rpx;
-}
-
-.filter-btn {
-  padding: 8rpx 16rpx;
-  font-size: 24rpx;
-  color: #666;
-  background: #f5f5f5;
-  border-radius: 20rpx;
-  transition: all 0.2s;
-}
-
-.filter-btn.active {
-  color: #fff;
-  background: #2196f3;
-}
-
-.chart-container {
-  height: 400rpx;
-  position: relative;
-}
-
-.chart-canvas {
-  width: 100%;
-  height: 100%;
-}
-
-/* 最新结果 */
-.latest-section {
-  padding: 0 24rpx 24rpx;
-}
-
-.latest-card {
+.sds-card {
+  border: 2rpx solid #2196f3;
   background: linear-gradient(135deg, #f8fcff 0%, #e6f4ff 100%);
-  border-radius: 16rpx;
-  padding: 32rpx;
-  border: 1rpx solid #e6f4ff;
 }
 
-.latest-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24rpx;
-}
-
-.latest-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #333;
-}
-
-.latest-date {
-  font-size: 24rpx;
-  color: #666;
-}
-
-.latest-score {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
+.card-header {
   margin-bottom: 16rpx;
 }
 
-.score-type {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #2196f3;
-}
-
-.score-value {
-  font-size: 36rpx;
-  font-weight: 600;
-  color: #333;
-}
-
-.score-level {
-  padding: 4rpx 12rpx;
-  border-radius: 8rpx;
-  font-size: 22rpx;
+.card-title {
+  font-size: 24rpx;
   font-weight: 500;
 }
 
-.latest-interpretation {
-  font-size: 26rpx;
-  color: #666;
-  line-height: 1.5;
+.sas-title {
+  color: #ff9800;
 }
 
-/* 推荐咨询师 */
-.counselor-section {
-  padding: 0 24rpx 24rpx;
+.sds-title {
+  color: #2196f3;
 }
 
-.counselor-header {
-  margin-bottom: 16rpx;
+.card-content {
+  text-align: center;
 }
 
-.counselor-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #333;
+.score-number {
+  font-size: 48rpx;
+  font-weight: bold;
   margin-bottom: 8rpx;
   display: block;
 }
 
-.counselor-subtitle {
-  font-size: 24rpx;
-  color: #666;
+.sas-score {
+  color: #ff9800;
+}
+
+.sds-score {
+  color: #2196f3;
+}
+
+.level-badge {
+  display: inline-block;
+  padding: 4rpx 16rpx;
+  border-radius: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.badge-text {
+  font-size: 20rpx;
+  font-weight: 500;
+}
+
+.trend-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+}
+
+.trend-icon {
+  font-size: 20rpx;
+}
+
+.trend-text {
+  font-size: 20rpx;
+  color: #6b7280;
+}
+
+/* 测评时间 */
+.assessment-time {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 32rpx;
+  color: #6b7280;
+  font-size: 28rpx;
+}
+
+.time-icon {
+  font-size: 28rpx;
+}
+
+/* 专业建议卡片 */
+.suggestion-card {
+  background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+  border: 2rpx solid #93c5fd;
+  border-radius: 16rpx;
+  padding: 32rpx;
+}
+
+.suggestion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.suggestion-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1e40af;
+}
+
+.suggestion-status {
+  background: rgba(30, 64, 175, 0.1);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+.status-text {
+  font-size: 20rpx;
+  color: #1e40af;
+}
+
+.suggestion-content {
+  font-size: 26rpx;
+  color: #1e3a8a;
+  line-height: 1.6;
+}
+
+/* 分隔线 */
+.section-divider {
+  height: 16rpx;
+  background: #e5e7eb;
+}
+
+/* 咨询师推荐区域 */
+.counselor-section {
+  background: #fff;
+  padding: 32rpx;
+}
+
+.section-header {
+  margin-bottom: 32rpx;
+}
+
+.section-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #1f2937;
 }
 
 .counselor-list {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 32rpx;
 }
 
 .counselor-card {
-  display: flex;
-  align-items: center;
   background: #fff;
   border-radius: 16rpx;
-  padding: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
+  padding: 32rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.1);
   position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.counselor-card:active {
+  transform: translateY(2rpx);
+  box-shadow: 0 1rpx 4rpx rgba(0,0,0,0.1);
+}
+
+.featured-counselor {
+  border: 2rpx solid #10b981;
+}
+
+/* 推荐原因标签 */
+.recommend-reason {
+  position: absolute;
+  top: 16rpx;
+  right: 16rpx;
+  background: #10b981;
+  border-radius: 12rpx;
+  padding: 6rpx 16rpx;
+}
+
+.reason-text {
+  font-size: 20rpx;
+  color: #fff;
+  font-weight: 500;
+}
+
+.counselor-content {
+  display: flex;
+  gap: 24rpx;
 }
 
 .counselor-avatar {
-  width: 80rpx;
-  height: 80rpx;
+  width: 96rpx;
+  height: 96rpx;
   border-radius: 50%;
-  margin-right: 24rpx;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-text {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #6b7280;
 }
 
 .counselor-info {
   flex: 1;
 }
 
-.counselor-name {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #333;
+.counselor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 8rpx;
 }
 
-.counselor-level {
+.counselor-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.rating-info {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+}
+
+.star-icon {
   font-size: 24rpx;
-  color: #2196f3;
+}
+
+.rating-text {
+  font-size: 26rpx;
+  color: #6b7280;
+}
+
+.counselor-level {
+  font-size: 26rpx;
+  color: #6b7280;
   margin-bottom: 8rpx;
 }
 
 .counselor-specialty {
   font-size: 24rpx;
-  color: #666;
-  margin-bottom: 8rpx;
+  color: #6b7280;
 }
 
-.counselor-meta {
-  display: flex;
-  gap: 16rpx;
-  font-size: 22rpx;
-  color: #888;
-}
-
-.match-badge {
-  position: absolute;
-  top: 16rpx;
-  right: 16rpx;
-  background: #4caf50;
-  padding: 4rpx 12rpx;
-  border-radius: 12rpx;
-}
-
-.match-text {
-  font-size: 20rpx;
-  color: #fff;
-}
-
-/* 历史记录 */
+/* 历史记录区域 */
 .history-section {
-  padding: 0 24rpx;
+  background: #fff;
+  padding: 32rpx;
 }
 
 .history-header {
-  margin-bottom: 16rpx;
-}
-
-.history-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #333;
-}
-
-.history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-
-.history-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #fff;
-  border-radius: 12rpx;
-  padding: 24rpx;
-  box-shadow: 0 1rpx 4rpx rgba(0,0,0,0.05);
+  margin-bottom: 32rpx;
 }
 
-.history-main {
+.clear-btn {
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: 8rpx;
+  color: #ef4444;
 }
 
-.history-type {
+.clear-icon {
   font-size: 24rpx;
-  font-weight: 600;
-  color: #333;
 }
 
-.history-score {
+.clear-text {
+  font-size: 26rpx;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 96rpx 0;
+}
+
+.empty-title {
   font-size: 28rpx;
-  font-weight: 600;
-  color: #333;
+  color: #9ca3af;
+  margin-bottom: 8rpx;
+  display: block;
 }
 
-.history-level {
-  padding: 4rpx 8rpx;
-  border-radius: 6rpx;
+.empty-subtitle {
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+/* 历史记录列表 */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.history-item {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  box-shadow: 0 2rpx 4rpx rgba(0,0,0,0.05);
+}
+
+.sas-bg {
+  background: linear-gradient(135deg, #fffaf5 0%, #ffe8ce 100%);
+  border: 2rpx solid #ffcc80;
+}
+
+.sds-bg {
+  background: linear-gradient(135deg, #f8fcff 0%, #e6f4ff 100%);
+  border: 2rpx solid #90caf9;
+}
+
+.history-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.type-info {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.type-badge {
+  padding: 6rpx 16rpx;
+  border-radius: 12rpx;
   font-size: 20rpx;
   font-weight: 500;
 }
 
-.history-date {
-  font-size: 22rpx;
-  color: #888;
-}
-
-/* 等级颜色 */
-.level-normal {
-  background: #e8f5e8;
-  color: #4caf50;
-}
-
-.level-mild {
-  background: #fff3e0;
+.sas-badge {
+  background: rgba(255, 152, 0, 0.1);
   color: #ff9800;
 }
 
-.level-moderate {
-  background: #ffebee;
-  color: #f44336;
+.sds-badge {
+  background: rgba(33, 150, 243, 0.08);
+  color: #2196f3;
 }
 
-.level-severe {
-  background: #fce4ec;
-  color: #e91e63;
+.type-name {
+  font-size: 26rpx;
+  color: #6b7280;
+}
+
+.date-time-info {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+.date-icon, .time-icon {
+  font-size: 24rpx;
+}
+
+.history-item-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.score-info {
+  display: flex;
+  align-items: center;
+  gap: 64rpx;
+}
+
+.score-display, .level-display {
+  text-align: center;
+}
+
+.score-value {
+  font-size: 48rpx;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 4rpx;
+}
+
+.score-green { color: #059669; }
+.score-yellow { color: #ffd505; }
+.score-purple { color: #a21caf; }
+.score-orange { color: #ea580c; }
+.score-red { color: #dc2626; }
+
+.score-label, .level-label {
+  font-size: 20rpx;
+  color: #6b7280;
+}
+
+.level-badge {
+  padding: 6rpx 16rpx;
+  border-radius: 12rpx;
+  margin-bottom: 4rpx;
+  display: inline-block;
+}
+
+.level-text {
+  font-size: 20rpx;
+  font-weight: 500;
+}
+
+.badge-green { background: #d1fae5; color: #059669; }
+.badge-yellow { background: #fef3c7; color: #d97706; }
+.badge-purple { background: #f3e8ff; color: #a21caf; }
+.badge-orange { background: #fed7aa; color: #ea580c; }
+.badge-red { background: #fecaca; color: #dc2626; }
+.badge-gray { background: #f3f4f6; color: #6b7280; }
+
+.detail-btn {
+  background: #f9fafb;
+  color: #6b7280;
+  padding: 16rpx 32rpx;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+}
+
+.detail-text {
+  color: #6b7280;
 }
 /* 底部导航栏样式 */
 .bottom-nav {

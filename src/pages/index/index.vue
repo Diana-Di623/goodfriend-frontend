@@ -332,7 +332,7 @@ let scrollInterval = null
 let progressTimer = null
 
 // 封装全局 loading 动画启动
-function showLoadingWithProgress(duration = 1700) {
+function showLoadingWithProgress(duration = 500) {
   isPageLoading.value = true
   progressBarWidth.value = 0
   if (progressTimer) clearInterval(progressTimer)
@@ -351,7 +351,7 @@ function showLoadingWithProgress(duration = 1700) {
 }
 
 onMounted(() => {
-  showLoadingWithProgress(2500)
+  showLoadingWithProgress(1000)
   // 检查登录状态
   const token = uni.getStorageSync('token')
   const userInfo = uni.getStorageSync('userInfo')

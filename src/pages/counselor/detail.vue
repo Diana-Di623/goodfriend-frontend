@@ -14,7 +14,7 @@
 
     <!-- 咨询师头像 -->
     <view class="profile-image-section">
-      <image class="profile-image" :src="counselor.avatar" mode="aspectFill" />
+      <image class="profile-image" :src="counselor.avatar || '/static/logo.png'" mode="aspectFill" />
       
       <!-- 服务保障横幅 -->
       <view class="guarantee-banner">
@@ -37,15 +37,15 @@
     <!-- 咨询师信息 -->
     <view class="profile-info">
       <view class="name-price">
-        <text class="name">{{ counselor.name }}</text>
+        <text class="name">{{ counselor.name || '咨询师' }}</text>
         <view class="price">
-          <text class="price-number">{{ counselor.price }}</text>
+          <text class="price-number">{{ counselor.price || 0 }}</text>
           <text class="price-unit">元/节起</text>
         </view>
       </view>
 
       <view class="credentials">
-        <text v-for="(credential, index) in counselor.credentials" :key="index" class="credential">
+        <text v-for="(credential, index) in (counselor.credentials || [])" :key="index" class="credential">
           {{ credential }}
         </text>
       </view>
@@ -53,7 +53,7 @@
       <view class="location-availability">
         <view class="location">
           <text class="icon">📍</text>
-          <text>{{ counselor.location }}</text>
+          <text>{{ counselor.location || '未知地区' }}</text>
         </view>
       </view>
 
@@ -67,22 +67,22 @@
     <view class="statistics-card">
       <view class="stats-grid">
         <view class="stat-item">
-          <text class="stat-number">{{ counselor.stats.caseHours }}</text>
+          <text class="stat-number">{{ counselor.stats?.caseHours || 0 }}</text>
           <text class="stat-label">个案时长</text>
           <text class="stat-unit">小时</text>
         </view>
         <view class="stat-item">
-          <text class="stat-number">{{ counselor.stats.experience }}</text>
+          <text class="stat-number">{{ counselor.stats?.experience || 0 }}</text>
           <text class="stat-label">从业年限</text>
           <text class="stat-unit">年</text>
         </view>
         <view class="stat-item">
-          <text class="stat-number">{{ counselor.stats.trainingHours }}</text>
+          <text class="stat-number">{{ counselor.stats?.trainingHours || 0 }}</text>
           <text class="stat-label">受训时长</text>
           <text class="stat-unit">小时</text>
         </view>
         <view class="stat-item">
-          <text class="stat-number">{{ counselor.stats.supervisionHours }}</text>
+          <text class="stat-number">{{ counselor.stats?.supervisionHours || 0 }}</text>
           <text class="stat-label">督导时长</text>
           <text class="stat-unit">小时</text>
         </view>
@@ -99,7 +99,7 @@
       </view>
 
       <view class="topics-grid">
-        <view v-for="(topic, index) in (showAllTopics ? counselor.topics : counselor.topics?.slice(0, 6))" :key="index" class="topic-item">
+        <view v-for="(topic, index) in (showAllTopics ? (counselor.topics || []) : (counselor.topics || []).slice(0, 6))" :key="index" class="topic-item">
           <text class="topic-name">{{ topic.name }}</text>
           <text class="topic-count">{{ topic.count }}</text>
         </view>
@@ -108,7 +108,7 @@
 
     <!-- 用户评价 -->
     <view class="reviews-section">
-      <view v-for="(review, index) in counselor.reviews" :key="index" class="review-card">
+      <view v-for="(review, index) in (counselor.reviews || [])" :key="index" class="review-card">
         <view class="review-header">
           <view class="user-info">
             <view class="avatar">
@@ -598,7 +598,21 @@ const counselorDatabase = {
   }
 }
 
-const counselor = ref({})
+const counselor = ref({
+  name: '',
+  price: 0,
+  avatar: '/static/logo.png',
+  location: '',
+  credentials: [],
+  stats: { 
+    caseHours: 0, 
+    experience: 0, 
+    trainingHours: 0, 
+    supervisionHours: 0 
+  },
+  topics: [],
+  reviews: []
+})
 const loading = ref(true)
 const showAllTopics = ref(false)
 const expandedReviews = ref(new Set()) // 管理展开的评论
@@ -611,12 +625,16 @@ onMounted(() => {
 
   console.log('页面参数:', options)
 
-  // 优先使用 counselorId，如果没有则使用 name，并自动 decodeURIComponent
-  const rawId = options.counselorId || options.name
+  // 优先使用 id，然后是 counselorId，最后是 name，并自动 decodeURIComponent
+  const rawId = options.id || options.counselorId || options.name
   const counselorId = rawId ? decodeURIComponent(rawId) : ''
 
   if (counselorId) {
     getCounselorDetail(counselorId)
+  } else {
+    // 如果没有参数，加载默认咨询师数据
+    console.log('未找到咨询师参数，加载默认数据')
+    getCounselorDetail('1') // 默认加载ID为1的咨询师
   }
 })
 
@@ -633,10 +651,19 @@ function getCounselorDetail(counselorId) {
   console.log('获取咨询师详情:', counselorId)
   loading.value = true
   
+  // ID 映射表：将数字 ID 映射到咨询师姓名
+  const idMapping = {
+    '1': '李心怡',
+    '2': '陈志强'
+  }
+  
+  // 如果传入的是数字 ID，转换为咨询师姓名
+  const actualId = idMapping[counselorId] || counselorId
+  
   // 模拟网络请求延迟
   setTimeout(() => {
     // 从本地数据库获取咨询师信息
-    const counselorData = counselorDatabase[counselorId]
+    const counselorData = counselorDatabase[actualId]
     
     if (counselorData) {
       counselor.value = counselorData
@@ -650,7 +677,7 @@ function getCounselorDetail(counselorId) {
       })
     } else {
       // 如果找不到对应的咨询师，显示错误信息并使用默认数据
-      console.warn('未找到咨询师信息:', counselorId)
+      console.warn('未找到咨询师信息:', actualId)
       
       // 显示可用的咨询师列表
       const availableCounselors = Object.keys(counselorDatabase).join(', ')
