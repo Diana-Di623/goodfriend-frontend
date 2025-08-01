@@ -15,7 +15,7 @@
         <view class="dot"></view>
         <view class="dot"></view>
       </view>
-      <text class="loading-text">加载中...</text>
+      <text class="loading-text">{{ loadingText }}</text>
     </view>
 
     <!-- 顶部导航区 -->
@@ -181,6 +181,7 @@ const counselorIndex = ref(0) // 当前显示的咨询师起始索引
 const currentUserInfo = ref({}) // 当前用户信息
 const isPageLoading = ref(true) // 全局页面加载状态
 const progressBarWidth = ref(0) // 加载进度条宽度百分比
+const loadingText = ref('加载中...') // 加载文本
 
 const slogans = [
   '每个情绪都值得被倾听',
@@ -332,9 +333,10 @@ let scrollInterval = null
 let progressTimer = null
 
 // 封装全局 loading 动画启动
-function showLoadingWithProgress(duration = 500) {
+function showLoadingWithProgress(duration = 500, text = '加载中...') {
   isPageLoading.value = true
   progressBarWidth.value = 0
+  loadingText.value = text
   if (progressTimer) clearInterval(progressTimer)
   setTimeout(() => {
     let start = Date.now()
@@ -351,7 +353,15 @@ function showLoadingWithProgress(duration = 500) {
 }
 
 onMounted(() => {
-  showLoadingWithProgress(1000)
+  // 检查是否是从其他页面返回，避免重复加载
+  const skipLoading = uni.getStorageSync('skipHomeLoading')
+  if (skipLoading) {
+    isPageLoading.value = false
+    uni.removeStorageSync('skipHomeLoading')
+  } else {
+    showLoadingWithProgress(1000, '欢迎来到好朋友心理')
+  }
+  
   // 检查登录状态
   const token = uni.getStorageSync('token')
   const userInfo = uni.getStorageSync('userInfo')
@@ -390,19 +400,17 @@ function handleRefresh() {
 
 // 首页导航 
 function goHome() {
-  showLoadingWithProgress(1000)
-  setTimeout(() => {
-    uni.pageScrollTo({
-      scrollTop: 0,
-      duration: 300
-    })
-  }, 500)
+  // 已经在首页，只需要滚动到顶部
+  uni.pageScrollTo({
+    scrollTop: 0,
+    duration: 300
+  })
 }
 
 function goProfile() {
   // 检查是否已登录
   const token = uni.getStorageSync('token')
-  showLoadingWithProgress(1200)
+  showLoadingWithProgress(1200, '正在打开个人中心...')
   setTimeout(() => {
     if (!token) {
       // 未登录，跳转到登录页面
@@ -445,7 +453,11 @@ function goTest(testType) {
     'SAS': '/pages/test/sas'
   }
   const route = testRoutes[testType]
-  showLoadingWithProgress(1200)
+  const testNames = {
+    'SDS': '抑郁自评量表',
+    'SAS': '焦虑自评量表'
+  }
+  showLoadingWithProgress(1200, `正在打开${testNames[testType]}...`)
   setTimeout(() => {
     if (route) {
       uni.navigateTo({
@@ -486,10 +498,14 @@ function checkLoginAndShowModal(action) {
 // 咨询师点击处理
 function handleCounselorClick(counselor) {
   if (checkLoginAndShowModal('咨询师服务')) {
-    // 跳转到咨询师详情页面
-    uni.navigateTo({
-      url: `/pages/counselor/detail?counselorId=${counselor.name}&name=${counselor.name}`
-    })
+    // 显示进度条加载动画
+    showLoadingWithProgress(1000, `正在查看${counselor.name}咨询师...`)
+    setTimeout(() => {
+      // 跳转到咨询师详情页面
+      uni.navigateTo({
+        url: `/pages/counselor/detail?counselorId=${counselor.name}&name=${counselor.name}`
+      })
+    }, 1000)
   }
 }
 
@@ -503,24 +519,37 @@ function handleTestClick(testType) {
 // 心理推文点击处理
 function handleArticleClick(article) {
   if (checkLoginAndShowModal('心理推文')) {
-    // 这里处理推文相关逻辑
-    console.log('点击了推文:', article)
+    showLoadingWithProgress(1000, '正在打开心理推文...')
+    setTimeout(() => {
+      // 这里处理推文相关逻辑
+      console.log('点击了推文:', article)
+      // 临时显示开发中提示
+      uni.showToast({
+        title: '心理推文功能开发中',
+        icon: 'none',
+        duration: 2000
+      })
+    }, 1000)
   }
 }
 
 // 心愿心语点击处理
 function handleWishClick() {
   if (checkLoginAndShowModal('心愿心语')) {
-    // 这里处理心愿心语相关逻辑
-    unreadMessageCount.value = 0
-    console.log('点击了心愿心语')
+    showLoadingWithProgress(1200, '正在打开心愿心语...')
+    setTimeout(() => {
+      unreadMessageCount.value = 0
+      uni.navigateTo({
+        url: '/pages/wish/wish'
+      })
+    }, 500)
   }
 }
 
 // 测评结果点击处理
 function goTestResults() {
   if (checkLoginAndShowModal('测评结果')) {
-    showLoadingWithProgress(1200)
+    showLoadingWithProgress(1200, '正在查看测评结果...')
     // 等待进度条动画结束后再跳转
     const unwatch = watch(isPageLoading, (val) => {
       if (!val) {
@@ -549,13 +578,17 @@ function goToLoginPage() {
     return
   }
   
-  uni.navigateTo({
-    url: '/pages/login/login',
-    success: () => {
-      // 跳转成功后关闭当前登录弹窗
-      showLoginModal.value = false
-    }
-  })
+  // 显示进度条加载动画
+  showLoadingWithProgress(800, '正在打开登录页面...')
+  setTimeout(() => {
+    uni.navigateTo({
+      url: '/pages/login/login',
+      success: () => {
+        // 跳转成功后关闭当前登录弹窗
+        showLoginModal.value = false
+      }
+    })
+  }, 800)
 }
 
 // 关闭登录弹窗
@@ -581,92 +614,99 @@ function closeLogin() {
 
 .global-loading-mask {
   position: fixed;
-  z-index: 2000;
-  left: 0; right: 0; top: 0; bottom: 0;
-  background: rgba(255,255,255,0.85);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 50%, #e8f5e8 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  z-index: 9999;
 }
-.loading-progress-bar-wrap-bottom {
-  position: absolute;
-  left: 0;
-  bottom: 38rpx;
-  width: 100vw;
-  height: 24rpx;
-  background: transparent;
-  z-index: 2100;
-}
+
 .loading-progress-bar-info {
-  position: absolute;
-  left: 0;
-  bottom: 62rpx;
-  width: 100vw;
-  display: flex;
-  justify-content: center;
-  z-index: 2101;
+  margin-bottom: 40rpx;
 }
+
 .loading-progress-text {
-  font-size: 22rpx;
-  color: #b48be7;
-  font-weight: 600;
-  background: rgba(255,255,255,0.85);
-  border-radius: 8rpx;
-  padding: 2rpx 16rpx;
-  letter-spacing: 2rpx;
+  font-size: 48rpx;
+  font-weight: bold;
+  background: linear-gradient(135deg, #ec407a, #ab47bc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
+
+.loading-progress-bar-wrap-bottom {
+  width: 400rpx;
+  height: 8rpx;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4rpx;
+  overflow: hidden;
+  margin-bottom: 80rpx;
+}
+
 .loading-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #ff97c3 0%, #cc01ff 100%);
-  border-radius: 20rpx;
-  transition: width 0.18s linear;
+  background: linear-gradient(135deg, #ec407a, #ab47bc);
+  border-radius: 4rpx;
+  transition: width 0.1s ease;
 }
+
 .loading-logo {
   width: 120rpx;
   height: 120rpx;
-  margin-bottom: 24rpx;
-  border-radius: 32rpx;
-  box-shadow: 0 4rpx 16rpx #f8bbd0;
+  margin-bottom: 32rpx;
+  border-radius: 50%;
+  box-shadow: 0 8rpx 24rpx rgba(236, 64, 122, 0.3);
 }
+
 .loading-title {
-  font-size: 38rpx;
-  font-weight: 700;
-  color: #222;
-  letter-spacing: 4rpx;
-  margin-bottom: 18rpx;
-  text-align: center;
-  font-family: 'PingFang SC', 'Microsoft YaHei', 'Arial', 'Helvetica Neue', 'sans-serif';
-  text-shadow: 0 2rpx 8rpx #f7f1f3, 0 1rpx 0 #fff;
+  font-size: 48rpx;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ec407a, #ab47bc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-bottom: 48rpx;
 }
+
 .loading-spinner {
   display: flex;
-  gap: 16rpx;
-  margin-bottom: 18rpx;
+  gap: 8rpx;
+  margin-bottom: 24rpx;
 }
+
 .loading-spinner .dot {
-  width: 22rpx;
-  height: 22rpx;
+  width: 12rpx;
+  height: 12rpx;
+  background: #ec407a;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ffb6d5 0%, #fffd93 100%);
-  animation: loading-bounce 1s infinite alternate;
+  animation: loading-bounce 1.4s ease-in-out infinite both;
 }
-.loading-spinner .dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-.loading-spinner .dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
+
+.loading-spinner .dot:nth-child(1) { animation-delay: -0.32s; }
+.loading-spinner .dot:nth-child(2) { animation-delay: -0.16s; }
+
 @keyframes loading-bounce {
-  0% { transform: translateY(0); opacity: 1; }
-  100% { transform: translateY(-18rpx); opacity: 0.5; }
+  0%, 80%, 100% { 
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% { 
+    transform: scale(1.2);
+    opacity: 1;
+  }
 }
+
 .loading-text {
   font-size: 28rpx;
-  color: #ff7a7a;
-  letter-spacing: 2rpx;
-  font-weight: 600;
+  color: #666;
+  font-weight: 500;
 }
+
 .slogan { font-size: 36rpx; color: #666; font-weight: 500; }
 .main-content { padding: 32rpx 24rpx 160rpx; } /* 增加底部间距避免被导航栏遮挡 */
 .section { margin-bottom: 32rpx; }

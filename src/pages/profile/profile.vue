@@ -1,5 +1,23 @@
 <template>
   <view class="profile-page">
+    <!-- 全局加载遮罩 -->
+    <view v-if="isPageLoading" class="global-loading-mask">
+      <view class="loading-progress-bar-info">
+        <text class="loading-progress-text">{{ Math.round(progressBarWidth) }}%</text>
+      </view>
+      <view class="loading-progress-bar-wrap-bottom">
+        <view class="loading-progress-bar" :style="{ width: progressBarWidth + '%' }"></view>
+      </view>
+      <image class="loading-logo" src="/static/logo.png" mode="aspectFit" />
+      <text class="loading-title">好朋友心理</text>
+      <view class="loading-spinner">
+        <view class="dot"></view>
+        <view class="dot"></view>
+        <view class="dot"></view>
+      </view>
+      <text class="loading-text">{{ loadingText }}</text>
+    </view>
+
     <!-- 头部 -->
     <view class="header">
       <view class="header-content">
@@ -125,6 +143,10 @@
     <view class="action-section">
       <view class="section-title">账户操作</view>
       <view class="action-buttons">
+        <button class="action-btn counselor-btn" @click="applyCounselor">
+          <text class="action-icon">👨‍⚕️</text>
+          <text class="action-text">申请成为咨询师</text>
+        </button>
         
         <button class="action-btn logout-btn" @click="handleLogout">
           <text class="action-icon">🚪</text>
@@ -155,6 +177,148 @@
         <text class="nav-label">个人中心</text>
       </view>
     </view>
+
+    <!-- 申请咨询师弹窗 -->
+    <view v-if="showCounselorModal" class="counselor-modal">
+      <view class="modal-overlay" @click="closeCounselorModal"></view>
+      <view class="modal-content">
+        <view class="modal-header">
+          <text class="modal-title">申请成为咨询师</text>
+          <view class="close-btn" @click="closeCounselorModal">✕</view>
+        </view>
+        
+        <scroll-view scroll-y class="modal-body">
+          <view class="form-group">
+            <text class="form-label">真实姓名 *</text>
+            <input 
+              v-model="counselorApplication.realName"
+              class="form-input"
+              placeholder="请输入真实姓名"
+              maxlength="20"
+            />
+          </view>
+          
+          <view class="form-group">
+            <text class="form-label">身份证号 *</text>
+            <input 
+              v-model="counselorApplication.idCard"
+              class="form-input"
+              placeholder="请输入身份证号"
+              maxlength="18"
+            />
+          </view>
+          
+          <view class="form-group">
+            <text class="form-label">手机号码 *</text>
+            <input 
+              v-model="counselorApplication.phone"
+              class="form-input"
+              placeholder="请输入手机号码"
+              type="number"
+              maxlength="11"
+            />
+          </view>
+          
+          <view class="form-group">
+            <text class="form-label">学历 *</text>
+            <picker 
+              mode="selector" 
+              :range="educationOptions"
+              :value="counselorApplication.educationIndex"
+              @change="onEducationChange"
+            >
+              <view class="picker-input">
+                <text :class="{ placeholder: counselorApplication.educationIndex === -1 }">
+                  {{ counselorApplication.educationIndex !== -1 ? educationOptions[counselorApplication.educationIndex] : '请选择学历' }}
+                </text>
+              </view>
+            </picker>
+          </view>
+          
+          <view class="form-group">
+            <text class="form-label">毕业院校 *</text>
+            <input 
+              v-model="counselorApplication.university"
+              class="form-input"
+              placeholder="请输入毕业院校"
+              maxlength="50"
+            />
+          </view>
+          
+          <view class="form-group">
+            <text class="form-label">所学专业 *</text>
+            <input 
+              v-model="counselorApplication.major"
+              class="form-input"
+              placeholder="请输入所学专业"
+              maxlength="50"
+            />
+          </view>
+          
+          <view class="form-group">
+            <text class="form-label">执业证书编号</text>
+            <input 
+              v-model="counselorApplication.licenseNumber"
+              class="form-input"
+              placeholder="如有心理咨询师证书请填写"
+              maxlength="30"
+            />
+          </view>
+          
+          <view class="form-group">
+            <text class="form-label">工作经验（年） *</text>
+            <input 
+              v-model="counselorApplication.experience"
+              class="form-input"
+              placeholder="请输入工作经验年数"
+              type="number"
+            />
+          </view>
+          
+          <view class="form-group">
+            <text class="form-label">擅长领域 *</text>
+            <view class="specialty-grid">
+              <view 
+                v-for="specialty in specialtyOptions"
+                :key="specialty"
+                class="specialty-item"
+                :class="{ active: counselorApplication.specialties.includes(specialty) }"
+                @click="toggleSpecialty(specialty)"
+              >
+                <text class="specialty-text">{{ specialty }}</text>
+              </view>
+            </view>
+          </view>
+          
+          <view class="form-group">
+            <text class="form-label">个人简介 *</text>
+            <textarea
+              v-model="counselorApplication.bio"
+              class="form-textarea"
+              placeholder="请简要介绍您的专业背景、工作经验和咨询理念（100-500字）"
+              maxlength="500"
+            />
+            <text class="char-count">{{ counselorApplication.bio.length }}/500</text>
+          </view>
+          
+          <view class="form-group">
+            <text class="form-label">申请理由 *</text>
+            <textarea
+              v-model="counselorApplication.reason"
+              class="form-textarea"
+              placeholder="请说明您申请成为平台咨询师的理由和目标"
+              maxlength="300"
+            />
+            <text class="char-count">{{ counselorApplication.reason.length }}/300</text>
+          </view>
+        </scroll-view>
+        
+        <view class="modal-footer">
+          <button class="cancel-btn" @click="closeCounselorModal">取消</button>
+          <button class="submit-btn" @click="submitCounselorApplication">提交申请</button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -164,6 +328,14 @@ import { GENDER_OPTIONS, REGION_OPTIONS, BIRTHDAY_CONFIG, isValidGender, isValid
 
 // 未读消息数量
 const unreadMessageCount = ref(15)
+
+// 进度条相关
+const isPageLoading = ref(false)
+const progressBarWidth = ref(0)
+const loadingText = ref('加载中...')
+
+// 进度条定时器
+let progressTimer = null
 
 // 性别选项
 const genderOptions = GENDER_OPTIONS
@@ -190,9 +362,70 @@ const userInfo = ref({
   bio: ''
 })
 
+// 申请咨询师相关
+const showCounselorModal = ref(false)
+const counselorApplication = ref({
+  realName: '',
+  idCard: '',
+  phone: '',
+  educationIndex: -1,
+  university: '',
+  major: '',
+  licenseNumber: '',
+  experience: '',
+  specialties: [],
+  bio: '',
+  reason: ''
+})
+
+// 学历选项
+const educationOptions = [
+  '高中及以下',
+  '大专',
+  '本科',
+  '硕士',
+  '博士'
+]
+
+// 擅长领域选项
+const specialtyOptions = [
+  '焦虑抑郁',
+  '情感关系',
+  '青少年心理',
+  '家庭治疗',
+  '职场压力',
+  '情绪管理',
+  '婚姻咨询',
+  '创伤治疗',
+  '认知行为',
+  '亲子关系',
+  '强迫症',
+  '睡眠障碍'
+]
+
 onMounted(() => {
   loadUserInfo()
 })
+
+// 封装全局 loading 动画启动
+function showLoadingWithProgress(duration = 500, text = '加载中...') {
+  isPageLoading.value = true
+  progressBarWidth.value = 0
+  loadingText.value = text
+  if (progressTimer) clearInterval(progressTimer)
+  setTimeout(() => {
+    let start = Date.now()
+    progressTimer = setInterval(() => {
+      const elapsed = Date.now() - start
+      let percent = Math.min(100, (elapsed / duration) * 100)
+      progressBarWidth.value = percent
+      if (percent >= 100) {
+        clearInterval(progressTimer)
+        isPageLoading.value = false
+      }
+    }, 16)
+  }, 30)
+}
 
 // 加载用户信息
 function loadUserInfo() {
@@ -247,9 +480,16 @@ function onRegionChange(e) {
 
 // 首页导航
 function goHome() {
-  uni.reLaunch({
-    url: '/pages/index/index'
-  })
+  // 显示进度条加载动画
+  showLoadingWithProgress(800, '正在跳转首页...')
+  
+  setTimeout(() => {
+    // 设置标志，避免首页重复加载
+    uni.setStorageSync('skipHomeLoading', true)
+    uni.reLaunch({
+      url: '/pages/index/index'
+    })
+  }, 800)
 }
 
 // 心愿心语导航
@@ -265,12 +505,14 @@ function handleWishClick() {
     return
   }
   
-  // 这里处理心愿心语相关逻辑
-  uni.showToast({
-    title: '心愿心语功能开发中',
-    icon: 'none',
-    duration: 2000
-  })
+  // 显示进度条加载动画
+  showLoadingWithProgress(1000, '正在打开心愿心语...')
+  
+  setTimeout(() => {
+    uni.navigateTo({
+      url: '/pages/wish/wish'
+    })
+  }, 1000)
 }
 
 // 测评结果导航
@@ -286,9 +528,14 @@ function goTestResults() {
     return
   }
   
-  uni.navigateTo({
-    url: '/pages/test/results'
-  })
+  // 显示进度条加载动画
+  showLoadingWithProgress(1000, '正在加载测评结果...')
+  
+  setTimeout(() => {
+    uni.navigateTo({
+      url: '/pages/test/results'
+    })
+  }, 1000)
 }
 
 // 选择头像
@@ -467,6 +714,184 @@ function handleLogout() {
       }
     }
   })
+}
+
+// 申请咨询师
+function applyCounselor() {
+  // 检查用户是否已完善个人信息
+  const userInfo = uni.getStorageSync('userInfo')
+  if (!userInfo || !userInfo.nickname || !userInfo.phone) {
+    uni.showModal({
+      title: '请先完善个人信息',
+      content: '申请成为咨询师前，请先完善您的个人资料',
+      showCancel: false,
+      confirmText: '知道了'
+    })
+    return
+  }
+
+  // 检查是否已经申请过
+  const existingApplication = uni.getStorageSync('counselorApplication')
+  if (existingApplication && existingApplication.status === 'pending') {
+    uni.showModal({
+      title: '申请审核中',
+      content: '您的咨询师申请正在审核中，请耐心等待管理员审核结果',
+      showCancel: false,
+      confirmText: '知道了'
+    })
+    return
+  }
+
+  // 初始化申请表单
+  counselorApplication.value = {
+    realName: '',
+    idCard: '',
+    phone: userInfo.phone || '',
+    educationIndex: -1,
+    university: '',
+    major: '',
+    licenseNumber: '',
+    experience: '',
+    specialties: [],
+    bio: '',
+    reason: ''
+  }
+  
+  showCounselorModal.value = true
+}
+
+// 关闭申请弹窗
+function closeCounselorModal() {
+  showCounselorModal.value = false
+}
+
+// 学历选择变更
+function onEducationChange(e) {
+  counselorApplication.value.educationIndex = e.detail.value
+}
+
+// 切换擅长领域
+function toggleSpecialty(specialty) {
+  const specialties = counselorApplication.value.specialties
+  const index = specialties.indexOf(specialty)
+  if (index > -1) {
+    specialties.splice(index, 1)
+  } else {
+    if (specialties.length < 5) { // 最多选择5个擅长领域
+      specialties.push(specialty)
+    } else {
+      uni.showToast({
+        title: '最多选择5个擅长领域',
+        icon: 'none'
+      })
+    }
+  }
+}
+
+// 提交申请
+function submitCounselorApplication() {
+  const app = counselorApplication.value
+  
+  // 表单验证
+  if (!app.realName.trim()) {
+    uni.showToast({ title: '请输入真实姓名', icon: 'none' })
+    return
+  }
+  
+  if (!app.idCard.trim() || !/^\d{17}[\dX]$/.test(app.idCard)) {
+    uni.showToast({ title: '请输入正确的身份证号', icon: 'none' })
+    return
+  }
+  
+  if (!app.phone.trim() || !/^1[3-9]\d{9}$/.test(app.phone)) {
+    uni.showToast({ title: '请输入正确的手机号', icon: 'none' })
+    return
+  }
+  
+  if (app.educationIndex === -1) {
+    uni.showToast({ title: '请选择学历', icon: 'none' })
+    return
+  }
+  
+  if (!app.university.trim()) {
+    uni.showToast({ title: '请输入毕业院校', icon: 'none' })
+    return
+  }
+  
+  if (!app.major.trim()) {
+    uni.showToast({ title: '请输入所学专业', icon: 'none' })
+    return
+  }
+  
+  if (!app.experience || app.experience < 0) {
+    uni.showToast({ title: '请输入正确的工作经验年数', icon: 'none' })
+    return
+  }
+  
+  if (app.specialties.length === 0) {
+    uni.showToast({ title: '请至少选择一个擅长领域', icon: 'none' })
+    return
+  }
+  
+  if (!app.bio.trim() || app.bio.length < 100) {
+    uni.showToast({ title: '个人简介至少需要100字', icon: 'none' })
+    return
+  }
+  
+  if (!app.reason.trim()) {
+    uni.showToast({ title: '请填写申请理由', icon: 'none' })
+    return
+  }
+
+  uni.showLoading({ title: '提交中...' })
+
+  // 模拟提交过程
+  setTimeout(() => {
+    try {
+      // 构造申请数据
+      const applicationData = {
+        ...app,
+        education: educationOptions[app.educationIndex],
+        userId: uni.getStorageSync('userInfo')?.id || Date.now(),
+        appliedAt: new Date().toISOString(),
+        status: 'pending' // pending, approved, rejected
+      }
+      
+      // 保存申请数据到本地（实际项目中应该发送到服务器）
+      uni.setStorageSync('counselorApplication', applicationData)
+      
+      // 同时保存到申请列表（供管理员查看）
+      const applications = uni.getStorageSync('counselorApplications') || []
+      applications.push(applicationData)
+      uni.setStorageSync('counselorApplications', applications)
+      
+      uni.hideLoading()
+      uni.showToast({
+        title: '申请提交成功',
+        icon: 'success'
+      })
+      
+      showCounselorModal.value = false
+      
+      // 显示后续流程提示
+      setTimeout(() => {
+        uni.showModal({
+          title: '申请已提交',
+          content: '您的咨询师申请已提交，我们将在3-5个工作日内完成审核，请耐心等待审核结果。',
+          showCancel: false,
+          confirmText: '知道了'
+        })
+      }, 1500)
+      
+    } catch (error) {
+      uni.hideLoading()
+      uni.showToast({
+        title: '提交失败，请重试',
+        icon: 'none'
+      })
+      console.error('提交申请失败:', error)
+    }
+  }, 1500)
 }
 </script>
 
@@ -745,6 +1170,16 @@ function handleLogout() {
   background: rgba(174, 220, 170, 0.3);
 }
 
+.counselor-btn {
+  background: rgba(64, 193, 236, 0.1);
+  border-color: #2e69e0;
+  color: #2e69e0;
+}
+
+.counselor-btn:active {
+  background: rgba(236, 64, 122, 0.2);
+}
+
 .action-icon {
   font-size: 40rpx;
   margin-right: 24rpx;
@@ -773,6 +1208,102 @@ function handleLogout() {
   justify-content: space-around;
   z-index: 1000;
   box-shadow: 0 -2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+/* 全局加载遮罩样式 */
+.global-loading-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 50%, #e8f5e8 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-progress-bar-info {
+  margin-bottom: 40rpx;
+}
+
+.loading-progress-text {
+  font-size: 48rpx;
+  font-weight: bold;
+  background: linear-gradient(135deg, #ec407a, #ab47bc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.loading-progress-bar-wrap-bottom {
+  width: 400rpx;
+  height: 8rpx;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4rpx;
+  overflow: hidden;
+  margin-bottom: 80rpx;
+}
+
+.loading-progress-bar {
+  height: 100%;
+  background: linear-gradient(135deg, #ec407a, #ab47bc);
+  border-radius: 4rpx;
+  transition: width 0.1s ease;
+}
+
+.loading-logo {
+  width: 120rpx;
+  height: 120rpx;
+  margin-bottom: 32rpx;
+  border-radius: 50%;
+  box-shadow: 0 8rpx 24rpx rgba(236, 64, 122, 0.3);
+}
+
+.loading-title {
+  font-size: 48rpx;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ec407a, #ab47bc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-bottom: 48rpx;
+}
+
+.loading-spinner {
+  display: flex;
+  gap: 8rpx;
+  margin-bottom: 24rpx;
+}
+
+.loading-spinner .dot {
+  width: 12rpx;
+  height: 12rpx;
+  background: #ec407a;
+  border-radius: 50%;
+  animation: loading-bounce 1.4s ease-in-out infinite both;
+}
+
+.loading-spinner .dot:nth-child(1) { animation-delay: -0.32s; }
+.loading-spinner .dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes loading-bounce {
+  0%, 80%, 100% { 
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% { 
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: #666;
+  font-weight: 500;
 }
 
 .nav-item {
@@ -832,5 +1363,218 @@ function handleLogout() {
   justify-content: center;
   padding: 0 8rpx;
   font-weight: bold;
+}
+
+/* 申请咨询师弹窗样式 */
+.counselor-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 800rpx;
+  max-height:100vh;
+  background: #fff;
+  border-radius: 20rpx;
+  display: flex;
+  flex-direction: column;
+  z-index: 10001;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 40rpx 32rpx 20rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.modal-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.close-btn {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #999;
+  cursor: pointer;
+}
+
+.close-btn:active {
+  background: #e5e5e5;
+}
+
+.modal-body {
+  flex: 1;
+  padding: 32rpx;
+  max-height: 60vh;
+}
+
+.form-group {
+  margin-bottom: 32rpx;
+}
+
+.form-label {
+  display: block;
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 16rpx;
+}
+
+.form-input {
+  width: 100%;
+  height: 80rpx;
+  padding: 0 24rpx;
+  border: 2rpx solid #e8e8e8;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  color: #333;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  border-color: #ec407a;
+}
+
+.picker-input {
+  width: 100%;
+  height: 80rpx;
+  padding: 0 24rpx;
+  border: 2rpx solid #e8e8e8;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  color: #333;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.picker-input .placeholder {
+  color: #999;
+}
+
+.form-textarea {
+  width: 100%;
+  min-height: 120rpx;
+  padding: 20rpx 24rpx;
+  border: 2rpx solid #e8e8e8;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  color: #333;
+  background: #fff;
+  line-height: 1.5;
+  box-sizing: border-box;
+  resize: none;
+}
+
+.form-textarea:focus {
+  border-color: #ec407a;
+}
+
+.char-count {
+  display: block;
+  text-align: right;
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+.specialty-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.specialty-item {
+  height: 60rpx;
+  border: 2rpx solid #e8e8e8;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.specialty-item.active {
+  border-color: #ec407a;
+  background: #ec407a;
+}
+
+.specialty-text {
+  font-size: 24rpx;
+  color: #666;
+  font-weight: 500;
+}
+
+.specialty-item.active .specialty-text {
+  color: #fff;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 24rpx;
+  padding: 24rpx 32rpx 40rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.cancel-btn {
+  flex: 1;
+  height: 80rpx;
+  border: 2rpx solid #e8e8e8;
+  border-radius: 12rpx;
+  background: #fff;
+  color: #666;
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+.cancel-btn:active {
+  background: #f5f5f5;
+}
+
+.submit-btn {
+  flex: 2;
+  height: 80rpx;
+  background: linear-gradient(135deg, #ec407a, #ab47bc);
+  border: none;
+  border-radius: 12rpx;
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.submit-btn:active {
+  opacity: 0.8;
 }
 </style>

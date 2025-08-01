@@ -55,6 +55,15 @@
 				"navigationBarTitleText": "测评结果",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/wish/wish",
+			"style": {
+				"navigationBarTitleText": "心愿心语",
+				"navigationStyle": "custom",
+				"enablePullDownRefresh": true,
+				"onReachBottomDistance": 50
+			}
 		}
 	],
 	"globalStyle": {

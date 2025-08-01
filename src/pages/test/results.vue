@@ -1,5 +1,23 @@
 <template>
   <view class="results-page">
+    <!-- 全局加载遮罩 -->
+    <view v-if="isPageLoading" class="global-loading-mask">
+      <view class="loading-progress-bar-info">
+        <text class="loading-progress-text">{{ Math.round(progressBarWidth) }}%</text>
+      </view>
+      <view class="loading-progress-bar-wrap-bottom">
+        <view class="loading-progress-bar" :style="{ width: progressBarWidth + '%' }"></view>
+      </view>
+      <image class="loading-logo" src="/static/logo.png" mode="aspectFit" />
+      <text class="loading-title">好朋友心理</text>
+      <view class="loading-spinner">
+        <view class="dot"></view>
+        <view class="dot"></view>
+        <view class="dot"></view>
+      </view>
+      <text class="loading-text">{{ loadingText }}</text>
+    </view>
+
     <!-- 最近结果 -->
     <view class="latest-results-section">
       <view class="results-header">
@@ -232,9 +250,38 @@ const historyRecords = ref([])
 // 未读消息数量
 const unreadMessageCount = ref(15)
 
+// 进度条相关
+const isPageLoading = ref(false)
+const progressBarWidth = ref(0)
+const loadingText = ref('加载中...')
+
 // 最新测评结果
 const latestSasResult = ref(null)
 const latestSdsResult = ref(null)
+
+
+// 进度条定时器
+let progressTimer = null
+
+// 封装全局 loading 动画启动
+function showLoadingWithProgress(duration = 500, text = '加载中...') {
+  isPageLoading.value = true
+  progressBarWidth.value = 0
+  loadingText.value = text
+  if (progressTimer) clearInterval(progressTimer)
+  setTimeout(() => {
+    let start = Date.now()
+    progressTimer = setInterval(() => {
+      const elapsed = Date.now() - start
+      let percent = Math.min(100, (elapsed / duration) * 100)
+      progressBarWidth.value = percent
+      if (percent >= 100) {
+        clearInterval(progressTimer)
+        isPageLoading.value = false
+      }
+    }, 16)
+  }, 30)
+}
 
 // 获取专业建议
 function getProfessionalAdvice() {
@@ -469,15 +516,26 @@ function viewDetail(record) {
 
 // 导航方法
 function goHome() {
-  uni.navigateTo({ url: '/pages/index/index' })
+  showLoadingWithProgress(800, '正在跳转首页...')
+  setTimeout(() => {
+    // 设置标志，避免首页重复加载
+    uni.setStorageSync('skipHomeLoading', true)
+    uni.reLaunch({ url: '/pages/index/index' })
+  }, 800)
 }
 
 function handleWishClick() {
-  uni.navigateTo({ url: '/pages/wish/wish' })
+  showLoadingWithProgress(800, '正在打开心愿心语...')
+  setTimeout(() => {
+    uni.navigateTo({ url: '/pages/wish/wish' })
+  }, 800)
 }
 
 function goProfile() {
-  uni.navigateTo({ url: '/pages/profile/profile' })
+  showLoadingWithProgress(800, '正在打开个人中心...')
+  setTimeout(() => {
+    uni.navigateTo({ url: '/pages/profile/profile' })
+  }, 800)
 }
 
 onMounted(() => {
@@ -533,6 +591,102 @@ onShow(() => {
   min-height: 100vh;
   background: #f5f5f5;
   padding-bottom: 120rpx;
+}
+
+/* 全局加载遮罩样式 */
+.global-loading-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 50%, #e8f5e8 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-progress-bar-info {
+  margin-bottom: 40rpx;
+}
+
+.loading-progress-text {
+  font-size: 48rpx;
+  font-weight: bold;
+  background: linear-gradient(135deg, #ec407a, #ab47bc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.loading-progress-bar-wrap-bottom {
+  width: 400rpx;
+  height: 8rpx;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4rpx;
+  overflow: hidden;
+  margin-bottom: 80rpx;
+}
+
+.loading-progress-bar {
+  height: 100%;
+  background: linear-gradient(135deg, #ec407a, #ab47bc);
+  border-radius: 4rpx;
+  transition: width 0.1s ease;
+}
+
+.loading-logo {
+  width: 120rpx;
+  height: 120rpx;
+  margin-bottom: 32rpx;
+  border-radius: 50%;
+  box-shadow: 0 8rpx 24rpx rgba(236, 64, 122, 0.3);
+}
+
+.loading-title {
+  font-size: 48rpx;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ec407a, #ab47bc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-bottom: 48rpx;
+}
+
+.loading-spinner {
+  display: flex;
+  gap: 8rpx;
+  margin-bottom: 24rpx;
+}
+
+.loading-spinner .dot {
+  width: 12rpx;
+  height: 12rpx;
+  background: #ec407a;
+  border-radius: 50%;
+  animation: loading-bounce 1.4s ease-in-out infinite both;
+}
+
+.loading-spinner .dot:nth-child(1) { animation-delay: -0.32s; }
+.loading-spinner .dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes loading-bounce {
+  0%, 80%, 100% { 
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% { 
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: #666;
+  font-weight: 500;
 }
 
 /* 最近结果区域 */
