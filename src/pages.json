@@ -64,6 +64,20 @@
 				"enablePullDownRefresh": true,
 				"onReachBottomDistance": 50
 			}
+		},
+		{
+			"path": "pages/counselor/appointments",
+			"style": {
+				"navigationBarTitleText": "我的预约",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/counselor/profile",
+			"style": {
+				"navigationBarTitleText": "个人简历",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"globalStyle": {

@@ -1,26 +1,26 @@
 <template>
   <view class="login-page">
-    <!-- 全局加载遮罩 -->
-    <view v-if="isPageLoading" class="global-loading-mask">
-      <view class="loading-progress-bar-info">
-        <text class="loading-progress-text">{{ Math.round(progressBarWidth) }}%</text>
-      </view>
-      <view class="loading-progress-bar-wrap-bottom">
-        <view class="loading-progress-bar" :style="{ width: progressBarWidth + '%' }"></view>
-      </view>
-      <image class="loading-logo" src="/static/logo.png" mode="aspectFit" />
-      <text class="loading-title">好朋友心理</text>
-      <view class="loading-spinner">
-        <view class="dot"></view>
-        <view class="dot"></view>
-        <view class="dot"></view>
-      </view>
-      <text class="loading-text">{{ loadingText }}</text>
-    </view>
-
     <!-- 头部 -->
     <view class="login-header">
       <text class="login-title">手机号快捷登录</text>
+      
+      <!-- 登录类型切换 -->
+      <view class="login-type-switch">
+        <view 
+          class="type-option" 
+          :class="{ active: loginType === 'user' }"
+          @click="switchLoginType('user')"
+        >
+          <text class="type-text">用户登录</text>
+        </view>
+        <view 
+          class="type-option" 
+          :class="{ active: loginType === 'counselor' }"
+          @click="switchLoginType('counselor')"
+        >
+          <text class="type-text">咨询师登录</text>
+        </view>
+      </view>
     </view>
 
     <!-- Logo区域 -->
@@ -83,7 +83,7 @@
 
       <!-- 登录按钮 -->
       <button class="login-btn" @click="handleLogin">
-        立即登录
+        {{ loginType === 'user' ? '立即登录' : '咨询师登录' }}
       </button>
 
       <!-- 其他登录方式 -->
@@ -104,19 +104,14 @@
 <script setup>
 import { ref, computed } from 'vue'
 
+// 登录类型
+const loginType = ref('user') // 'user' 或 'counselor'
+
 // 表单数据
 const phoneNumber = ref('')
 const verificationCode = ref('')
 const termsAccepted = ref(false)
 const countdown = ref(0)
-
-// 进度条相关
-const isPageLoading = ref(false)
-const progressBarWidth = ref(0)
-const loadingText = ref('加载中...')
-
-// 进度条定时器
-let progressTimer = null
 
 // 计算属性：是否可以发送验证码
 const canSendCode = computed(() => {
@@ -154,29 +149,17 @@ function goBrowse() {
   })
 }
 
+// 切换登录类型
+function switchLoginType(type) {
+  loginType.value = type
+  // 清空表单数据
+  phoneNumber.value = ''
+  verificationCode.value = ''
+}
+
 // 切换协议同意状态
 function toggleTerms() {
   termsAccepted.value = !termsAccepted.value
-}
-
-// 封装全局 loading 动画启动
-function showLoadingWithProgress(duration = 500, text = '加载中...') {
-  isPageLoading.value = true
-  progressBarWidth.value = 0
-  loadingText.value = text
-  if (progressTimer) clearInterval(progressTimer)
-  setTimeout(() => {
-    let start = Date.now()
-    progressTimer = setInterval(() => {
-      const elapsed = Date.now() - start
-      let percent = Math.min(100, (elapsed / duration) * 100)
-      progressBarWidth.value = percent
-      if (percent >= 100) {
-        clearInterval(progressTimer)
-        isPageLoading.value = false
-      }
-    }, 16)
-  }, 30)
 }
 
 // 发送验证码
@@ -291,10 +274,14 @@ function handleLogin() {
 
 // 执行登录请求
 async function performLogin() {
-  showLoadingWithProgress(1500, '登录中...')
+  uni.showLoading({
+    title: '登录中...'
+  })
 
   // 模拟登录成功
   setTimeout(() => {
+    uni.hideLoading()
+    
     // 获取现有用户信息（如果有的话）
     const existingUserInfo = uni.getStorageSync('userInfo') || {}
     
@@ -307,7 +294,8 @@ async function performLogin() {
       ...existingUserInfo,  // 保留已有信息
       phone: phoneNumber.value,
       nickname: existingUserInfo.nickname || '用户' + phoneNumber.value.slice(-4),
-      loginTime: new Date().toISOString()
+      loginTime: new Date().toISOString(),
+      userType: loginType.value // 保存用户类型
     }
     
     uni.setStorageSync('token', mockToken)
@@ -320,7 +308,7 @@ async function performLogin() {
       duration: 1500
     })
     
-    // 延迟后跳转到个人主页
+    // 延迟后跳转到相应页面
     setTimeout(() => {
       uni.showToast({
         title: '欢迎回来！',
@@ -329,10 +317,34 @@ async function performLogin() {
       })
       
       setTimeout(() => {
-        // 登录成功后直接跳转到个人主页
-        uni.reLaunch({
-          url: '/pages/profile/profile'
-        })
+        // 根据登录类型跳转到不同页面
+        if (loginType.value === 'counselor') {
+          console.log('尝试跳转到咨询师页面')
+          uni.navigateTo({
+            url: '/pages/counselor/appointments',
+            success: () => {
+              console.log('成功跳转到咨询师预约页面')
+            },
+            fail: (err) => {
+              console.error('跳转失败:', err)
+              uni.showToast({
+                title: '页面跳转失败，请稍后重试',
+                icon: 'none',
+                duration: 2000
+              })
+              // 降级处理，跳转到首页
+              setTimeout(() => {
+                uni.reLaunch({
+                  url: '/pages/index/index'
+                })
+              }, 2000)
+            }
+          })
+        } else {
+          uni.reLaunch({
+            url: '/pages/profile/profile'
+          })
+        }
       }, 1500)
     }, 1500)
   }, 1000) // 模拟网络延迟
@@ -345,104 +357,9 @@ async function performLogin() {
   background: linear-gradient(135deg, #ecb198 0%, #e2beeb 50%, #b5d9ee 100%);
 }
 
-/* 全局加载遮罩样式 */
-.global-loading-mask {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 50%, #e8f5e8 100%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-
-.loading-progress-bar-info {
-  margin-bottom: 40rpx;
-}
-
-.loading-progress-text {
-  font-size: 48rpx;
-  font-weight: bold;
-  background: linear-gradient(135deg, #ec407a, #ab47bc);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.loading-progress-bar-wrap-bottom {
-  width: 400rpx;
-  height: 8rpx;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 4rpx;
-  overflow: hidden;
-  margin-bottom: 80rpx;
-}
-
-.loading-progress-bar {
-  height: 100%;
-  background: linear-gradient(135deg, #ec407a, #ab47bc);
-  border-radius: 4rpx;
-  transition: width 0.1s ease;
-}
-
-.loading-logo {
-  width: 120rpx;
-  height: 120rpx;
-  margin-bottom: 32rpx;
-  border-radius: 50%;
-  box-shadow: 0 8rpx 24rpx rgba(236, 64, 122, 0.3);
-}
-
-.loading-title {
-  font-size: 48rpx;
-  font-weight: 900;
-  background: linear-gradient(135deg, #ec407a, #ab47bc);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  margin-bottom: 48rpx;
-}
-
-.loading-spinner {
-  display: flex;
-  gap: 8rpx;
-  margin-bottom: 24rpx;
-}
-
-.loading-spinner .dot {
-  width: 12rpx;
-  height: 12rpx;
-  background: #ec407a;
-  border-radius: 50%;
-  animation: loading-bounce 1.4s ease-in-out infinite both;
-}
-
-.loading-spinner .dot:nth-child(1) { animation-delay: -0.32s; }
-.loading-spinner .dot:nth-child(2) { animation-delay: -0.16s; }
-
-@keyframes loading-bounce {
-  0%, 80%, 100% { 
-    transform: scale(0.8);
-    opacity: 0.5;
-  }
-  40% { 
-    transform: scale(1.2);
-    opacity: 1;
-  }
-}
-
-.loading-text {
-  font-size: 28rpx;
-  color: #666;
-  font-weight: 500;
-}
-
 .login-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 44rpx 32rpx 32rpx;
@@ -454,6 +371,42 @@ async function performLogin() {
   font-size: 36rpx;
   font-weight: 500;
   color: #333;
+  margin-bottom: 24rpx;
+}
+
+.login-type-switch {
+  display: flex;
+  background: #f5f5f5;
+  border-radius: 12rpx;
+  padding: 4rpx;
+  width: 400rpx;
+}
+
+.type-option {
+  flex: 1;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8rpx;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.type-option.active {
+  background: #ec407a;
+  box-shadow: 0 2rpx 8rpx rgba(236, 64, 122, 0.3);
+}
+
+.type-text {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #666;
+  transition: color 0.3s ease;
+}
+
+.type-option.active .type-text {
+  color: #fff;
 }
 
 .logo-section {

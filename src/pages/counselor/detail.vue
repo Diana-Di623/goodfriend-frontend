@@ -89,6 +89,94 @@
       </view>
     </view>
 
+    <!-- 个人简介 -->
+    <view v-if="counselor.bio" class="profile-section">
+      <view class="section-header">
+        <text class="section-title">个人简介</text>
+      </view>
+      <view class="bio-content">
+        <text class="bio-text">{{ counselor.bio }}</text>
+      </view>
+    </view>
+
+    <!-- 教育背景 -->
+    <view v-if="counselor.educationList && counselor.educationList.length > 0" class="profile-section">
+      <view class="section-header">
+        <text class="section-title">教育背景</text>
+      </view>
+      <view class="education-list">
+        <view 
+          v-for="(education, index) in counselor.educationList"
+          :key="index"
+          class="education-item"
+        >
+          <view class="education-header">
+            <view class="education-degree-section">
+              <text class="education-degree">{{ education.degree }}</text>
+              <text class="education-year">{{ education.year }}</text>
+            </view>
+            <view class="education-icon">🎓</view>
+          </view>
+          <view class="education-details">
+            <text class="education-school">{{ education.school }}</text>
+            <text class="education-major">{{ education.major }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 工作经历 -->
+    <view v-if="counselor.experienceList && counselor.experienceList.length > 0" class="profile-section">
+      <view class="section-header">
+        <text class="section-title">工作经历</text>
+      </view>
+      <view class="experience-list">
+        <view 
+          v-for="(exp, index) in counselor.experienceList"
+          :key="index"
+          class="experience-item"
+        >
+          <view class="experience-header">
+            <view class="experience-company-section">
+              <text class="experience-company">{{ exp.company }}</text>
+              <text class="experience-duration">{{ exp.duration }}</text>
+            </view>
+            <view class="experience-icon">💼</view>
+          </view>
+          <view class="experience-details">
+            <text class="experience-position">{{ exp.position }}</text>
+            <text class="experience-description">{{ exp.description }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 执业资质 -->
+    <view v-if="counselor.certificatesList && counselor.certificatesList.length > 0" class="profile-section">
+      <view class="section-header">
+        <text class="section-title">执业资质</text>
+      </view>
+      <view class="certificates-list">
+        <view 
+          v-for="(cert, index) in counselor.certificatesList"
+          :key="index"
+          class="certificate-item"
+        >
+          <view class="certificate-header">
+            <view class="certificate-name-section">
+              <text class="certificate-name">{{ cert.name }}</text>
+              <text class="certificate-issuer">{{ cert.issuer }}</text>
+            </view>
+            <view class="certificate-icon">📜</view>
+          </view>
+          <view class="certificate-details">
+            <text class="certificate-number">证书编号：{{ cert.number }}</text>
+            <text class="certificate-date">获得时间：{{ cert.date }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <!-- 咨询感受 -->
     <view class="consultation-topics">
       <view class="section-header">
@@ -157,7 +245,38 @@ const counselorDatabase = {
     specialty: '焦虑抑郁',
     gender: '男',
     rating: 0.1,
+    bio: '我是牢陈头，心理学专业毕业的新手咨询师。虽然经验不多，但我对心理咨询充满热情，希望能够帮助每一位来访者。我专注于焦虑和抑郁问题的处理，相信通过真诚的沟通和专业的方法，能够为大家提供有效的心理支持。',
     credentials: ['心理学学士', '初级心理咨询师', '认知行为疗法培训'],
+    educationList: [
+      {
+        degree: '学士学位',
+        year: '2020-2024',
+        school: '连州大学',
+        major: '应用心理学'
+      }
+    ],
+    experienceList: [
+      {
+        company: '连州心理咨询中心',
+        duration: '2024年至今',
+        position: '实习咨询师',
+        description: '在督导老师指导下进行个体心理咨询，主要处理轻度焦虑和抑郁问题。'
+      }
+    ],
+    certificatesList: [
+      {
+        name: '心理咨询师基础培训合格证书',
+        issuer: '中科院心理所',
+        number: 'XL202400123',
+        date: '2024年6月'
+      },
+      {
+        name: '认知行为疗法培训证书',
+        issuer: '中国心理学会',
+        number: 'CBT202400045',
+        date: '2024年8月'
+      }
+    ],
     stats: {
       caseHours: 120,
       experience: 1,
@@ -240,7 +359,56 @@ const counselorDatabase = {
     specialty: '情感关系',
     gender: '男',
     rating: 4.8,
+    bio: '我是王明轩，专注于情感关系咨询8年。拥有心理学硕士学位，是认证的婚姻家庭咨询师和EFT情感聚焦疗法师。我相信每段关系都有修复和成长的可能，致力于帮助夫妻和情侣重建亲密连接，解决情感困扰。通过专业的治疗技术和丰富的实践经验，我为来访者提供个性化的情感咨询服务。',
     credentials: ['心理学硕士', '婚姻家庭咨询师', 'EFT情感聚焦疗法师'],
+    educationList: [
+      {
+        degree: '硕士学位',
+        year: '2014-2017',
+        school: '华东师范大学',
+        major: '应用心理学（临床方向）'
+      },
+      {
+        degree: '学士学位',
+        year: '2010-2014',
+        school: '上海交通大学',
+        major: '心理学'
+      }
+    ],
+    experienceList: [
+      {
+        company: '上海心灵家园心理咨询中心',
+        duration: '2020年至今',
+        position: '高级咨询师',
+        description: '专门从事婚姻情感咨询，擅长处理夫妻关系、情感创伤、亲密关系障碍等问题。'
+      },
+      {
+        company: '浦东心理健康中心',
+        duration: '2017-2020年',
+        position: '心理咨询师',
+        description: '提供个体和夫妻咨询服务，积累了丰富的情感咨询经验。'
+      }
+    ],
+    certificatesList: [
+      {
+        name: '国家二级心理咨询师',
+        issuer: '人力资源和社会保障部',
+        number: 'XL201700289',
+        date: '2017年5月'
+      },
+      {
+        name: 'EFT情感聚焦疗法师认证',
+        issuer: '国际EFT训练中心',
+        number: 'EFT201800156',
+        date: '2018年10月'
+      },
+      {
+        name: '婚姻家庭咨询师',
+        issuer: '中国心理卫生协会',
+        number: 'MFCC201900087',
+        date: '2019年3月'
+      }
+    ],
     stats: {
       caseHours: 2800,
       experience: 8,
@@ -317,7 +485,62 @@ const counselorDatabase = {
     specialty: '青少年心理',
     gender: '女',
     rating: 5.0,
+    bio: '我是张雨萌，从事青少年心理咨询工作12年，拥有心理学博士学位。我深入了解青少年的心理发展特点，擅长处理青春期各种心理问题。我相信每个青少年都有巨大的成长潜力，通过专业的心理治疗技术和温暖的陪伴，帮助他们度过人生中的重要阶段，建立健康的心理模式。',
     credentials: ['心理学博士', '青少年心理咨询专家', '家庭治疗师'],
+    educationList: [
+      {
+        degree: '博士学位',
+        year: '2008-2012',
+        school: '中山大学',
+        major: '发展与教育心理学'
+      },
+      {
+        degree: '硕士学位',
+        year: '2006-2008',
+        school: '华南师范大学',
+        major: '应用心理学'
+      },
+      {
+        degree: '学士学位',
+        year: '2002-2006',
+        school: '暨南大学',
+        major: '心理学'
+      }
+    ],
+    experienceList: [
+      {
+        company: '广州市青少年心理健康中心',
+        duration: '2015年至今',
+        position: '首席心理专家',
+        description: '负责青少年心理危机干预、家庭治疗以及心理咨询师培训工作。'
+      },
+      {
+        company: '中山大学附属心理医院',
+        duration: '2012-2015年',
+        position: '主治心理师',
+        description: '专门从事儿童青少年心理障碍的诊断和治疗工作。'
+      }
+    ],
+    certificatesList: [
+      {
+        name: '临床心理学专业资格证书',
+        issuer: '国家卫健委',
+        number: 'LP201200134',
+        date: '2012年6月'
+      },
+      {
+        name: '青少年心理咨询专家认证',
+        issuer: '中国心理学会',
+        number: 'YP201500067',
+        date: '2015年9月'
+      },
+      {
+        name: '结构式家庭治疗师认证',
+        issuer: '国际家庭治疗学会',
+        number: 'SFT201800089',
+        date: '2018年4月'
+      }
+    ],
     stats: {
       caseHours: 3500,
       experience: 12,
@@ -385,7 +608,56 @@ const counselorDatabase = {
     specialty: '家庭治疗',
     gender: '女',
     rating: 4.9,
+    bio: '我是李心怡，专注于家庭治疗领域7年。我拥有心理学硕士学位，是经过专业认证的家庭系统治疗师和结构式家庭治疗师。我相信家庭是一个复杂的系统，每个成员都在其中扮演重要角色。通过系统性的家庭治疗方法，我帮助家庭成员重新理解彼此，改善沟通模式，建立更健康的家庭关系。',
     credentials: ['心理学硕士', '家庭系统治疗师', '结构式家庭治疗师'],
+    educationList: [
+      {
+        degree: '硕士学位',
+        year: '2015-2018',
+        school: '北京师范大学',
+        major: '临床与咨询心理学'
+      },
+      {
+        degree: '学士学位',
+        year: '2011-2015',
+        school: '首都师范大学',
+        major: '应用心理学'
+      }
+    ],
+    experienceList: [
+      {
+        company: '北京家庭治疗中心',
+        duration: '2020年至今',
+        position: '高级家庭治疗师',
+        description: '专门从事家庭系统治疗，处理各种家庭关系问题和婚姻危机。'
+      },
+      {
+        company: '朝阳区心理健康服务中心',
+        duration: '2018-2020年',
+        position: '心理咨询师',
+        description: '提供个体、夫妻和家庭咨询服务，积累了丰富的家庭治疗经验。'
+      }
+    ],
+    certificatesList: [
+      {
+        name: '国家二级心理咨询师',
+        issuer: '人力资源和社会保障部',
+        number: 'XL201800234',
+        date: '2018年5月'
+      },
+      {
+        name: '结构式家庭治疗师认证',
+        issuer: '中国家庭治疗学会',
+        number: 'SFT201900123',
+        date: '2019年8月'
+      },
+      {
+        name: '萨提亚家庭治疗师认证',
+        issuer: '萨提亚太平洋学院',
+        number: 'SAT202000067',
+        date: '2020年11月'
+      }
+    ],
     stats: {
       caseHours: 2100,
       experience: 7,
@@ -453,7 +725,56 @@ const counselorDatabase = {
     specialty: '职场压力',
     gender: '男',
     rating: 4.7,
+    bio: '我是陈志强，专注于职场心理健康领域6年。我拥有心理学硕士学位，同时是认证的职业规划师和压力管理专家。在快节奏的现代职场中，我深度理解职场人士面临的各种压力和挑战。通过专业的心理咨询技术和丰富的职场经验，我帮助来访者有效管理工作压力，改善职场人际关系，实现工作与生活的平衡。',
     credentials: ['心理学硕士', '职业规划师', '压力管理专家'],
+    educationList: [
+      {
+        degree: '硕士学位',
+        year: '2016-2019',
+        school: '深圳大学',
+        major: '应用心理学（组织管理方向）'
+      },
+      {
+        degree: '学士学位',
+        year: '2012-2016',
+        school: '华南理工大学',
+        major: '人力资源管理'
+      }
+    ],
+    experienceList: [
+      {
+        company: '深圳职场心理健康中心',
+        duration: '2021年至今',
+        position: '高级职场心理顾问',
+        description: '为各大企业和个人提供职场心理健康服务，专注于压力管理和职业发展。'
+      },
+      {
+        company: '腾讯员工心理健康部',
+        duration: '2019-2021年',
+        position: '企业心理咨询师',
+        description: '为腾讯员工提供职场压力管理、人际关系处理等心理咨询服务。'
+      }
+    ],
+    certificatesList: [
+      {
+        name: '国家二级心理咨询师',
+        issuer: '人力资源和社会保障部',
+        number: 'XL201900178',
+        date: '2019年5月'
+      },
+      {
+        name: '全球职业规划师认证',
+        issuer: '国际职业规划协会',
+        number: 'GCDF202000089',
+        date: '2020年3月'
+      },
+      {
+        name: '压力管理专家认证',
+        issuer: '中国心理卫生协会',
+        number: 'SM202100045',
+        date: '2021年7月'
+      }
+    ],
     stats: {
       caseHours: 1800,
       experience: 6,
@@ -527,6 +848,58 @@ const counselorDatabase = {
     location: '杭州·西湖',
     level: '专家咨询师',
     specialty: '情绪管理',
+    gender: '女',
+    rating: 4.8,
+    bio: '我是赵美丽，专注于情绪管理和情绪调节领域9年。我拥有心理学硕士学位，是经过专业认证的情绪调节专家。我深入研究各种情绪障碍的治疗方法，特别擅长处理焦虑、抑郁、愤怒等情绪问题。通过认知行为疗法、正念疗法等多种技术，我帮助来访者学会识别、理解和有效管理自己的情绪，重新获得内心的平静与力量。',
+    credentials: ['心理学硕士', '情绪调节专家', '正念治疗师'],
+    educationList: [
+      {
+        degree: '硕士学位',
+        year: '2013-2016',
+        school: '浙江大学',
+        major: '临床心理学'
+      },
+      {
+        degree: '学士学位',
+        year: '2009-2013',
+        school: '杭州师范大学',
+        major: '应用心理学'
+      }
+    ],
+    experienceList: [
+      {
+        company: '杭州市心理健康中心',
+        duration: '2018年至今',
+        position: '情绪管理专家',
+        description: '专门从事各种情绪障碍的诊断和治疗，提供个体和团体情绪管理训练。'
+      },
+      {
+        company: '西湖区社区心理服务中心',
+        duration: '2016-2018年',
+        position: '心理咨询师',
+        description: '为社区居民提供情绪调节和心理健康服务。'
+      }
+    ],
+    certificatesList: [
+      {
+        name: '国家二级心理咨询师',
+        issuer: '人力资源和社会保障部',
+        number: 'XL201600145',
+        date: '2016年5月'
+      },
+      {
+        name: '正念减压疗法师认证',
+        issuer: '正念减压疗法国际中心',
+        number: 'MBSR201800234',
+        date: '2018年9月'
+      },
+      {
+        name: '情绪调节技术专家认证',
+        issuer: '中国心理学会',
+        number: 'ER202000078',
+        date: '2020年6月'
+      }
+    ],
     gender: '女',
     rating: 4.8,
     credentials: ['心理学博士', '情绪聚焦治疗师', 'EMDR治疗师'],
@@ -662,8 +1035,23 @@ function getCounselorDetail(counselorId) {
   
   // 模拟网络请求延迟
   setTimeout(() => {
-    // 从本地数据库获取咨询师信息
-    const counselorData = counselorDatabase[actualId]
+    // 优先从咨询师端同步的数据库获取信息
+    let counselorData = null
+    
+    try {
+      const syncedDatabase = uni.getStorageSync('counselorDatabase')
+      if (syncedDatabase && syncedDatabase[actualId]) {
+        counselorData = syncedDatabase[actualId]
+        console.log('从同步数据库加载咨询师数据:', counselorData.name)
+      }
+    } catch (error) {
+      console.log('读取同步数据库失败，使用默认数据库')
+    }
+    
+    // 如果同步数据库中没有，使用本地默认数据库
+    if (!counselorData) {
+      counselorData = counselorDatabase[actualId]
+    }
     
     if (counselorData) {
       counselor.value = counselorData
@@ -1101,6 +1489,217 @@ function toggleReviewExpand(reviewIndex) {
   font-size: 28rpx;
   font-weight: 500;
   color: #333;
+}
+
+.condition {
+  font-size: 24rpx;
+  color: #666;
+  background: #f0f0f0;
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+}
+
+.date {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.review-content {
+  font-size: 30rpx;
+  line-height: 1.6;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+.expand-btn {
+  font-size: 28rpx;
+  color: #007aff;
+  cursor: pointer;
+}
+
+/* 新增部分样式 */
+.profile-section {
+  background: #fff;
+  margin: 32rpx;
+  border-radius: 16rpx;
+  padding: 32rpx;
+}
+
+.bio-content {
+  padding: 24rpx 0;
+}
+
+.bio-text {
+  font-size: 30rpx;
+  line-height: 1.6;
+  color: #333;
+}
+
+/* 教育背景样式 */
+.education-list {
+  margin-top: 24rpx;
+}
+
+.education-item {
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.education-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.education-degree-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.education-degree {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.education-year {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.education-icon {
+  font-size: 40rpx;
+}
+
+.education-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.education-school {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.education-major {
+  font-size: 26rpx;
+  color: #666;
+}
+
+/* 工作经历样式 */
+.experience-list {
+  margin-top: 24rpx;
+}
+
+.experience-item {
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.experience-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.experience-company-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.experience-company {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.experience-duration {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.experience-icon {
+  font-size: 40rpx;
+}
+
+.experience-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.experience-position {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.experience-description {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* 执业资质样式 */
+.certificates-list {
+  margin-top: 24rpx;
+}
+
+.certificate-item {
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.certificate-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.certificate-name-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.certificate-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.certificate-issuer {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.certificate-icon {
+  font-size: 40rpx;
+}
+
+.certificate-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.certificate-number,
+.certificate-date {
+  font-size: 26rpx;
+  color: #666;
 }
 
 .condition {
