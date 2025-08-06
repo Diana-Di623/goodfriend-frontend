@@ -103,6 +103,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { userAPI } from '@/utils/api.js'
 
 // 登录类型
 const loginType = ref('user') // 'user' 或 'counselor'
@@ -209,11 +210,12 @@ async function sendVerificationCode() {
     return
   }
 
-  // 模拟发送验证码，固定为123456
-  uni.showToast({
-    title: '验证码：123456',
-    icon: 'success',
-    duration: 3000
+  // 模拟发送验证码（临时使用固定验证码123456）
+  uni.showModal({
+    title: '验证码发送成功',
+    content: '由于验证码服务还在开发中，请使用固定验证码：123456',
+    showCancel: false,
+    confirmText: '我知道了'
   })
   
   // 开始60秒倒计时
@@ -249,21 +251,11 @@ function handleLogin() {
   }
 
   // 检查验证码
-  if (!verificationCode.value || verificationCode.value.length !== 6) {
+  if (!verificationCode.value || verificationCode.value.length < 1) {
     uni.showToast({
-      title: '请输入6位验证码',
+      title: '请输入验证码',
       icon: 'none',
       duration: 1500
-    })
-    return
-  }
-
-  // 验证固定验证码123456
-  if (verificationCode.value !== '123456') {
-    uni.showToast({
-      title: '验证码错误qwq,请输入123456',
-      icon: 'none',
-      duration: 2000
     })
     return
   }
@@ -278,76 +270,124 @@ async function performLogin() {
     title: '登录中...'
   })
 
-  // 模拟登录成功
-  setTimeout(() => {
-    uni.hideLoading()
-    
-    // 获取现有用户信息（如果有的话）
-    const existingUserInfo = uni.getStorageSync('userInfo') || {}
-    
-    // 生成登录时间标识，用于测评数据清零
-    const loginTime = Date.now().toString()
-    
-    // 模拟保存基础登录信息
-    const mockToken = 'mock_token_' + Date.now()
-    const mockUserInfo = {
-      ...existingUserInfo,  // 保留已有信息
-      phone: phoneNumber.value,
-      nickname: existingUserInfo.nickname || '用户' + phoneNumber.value.slice(-4),
-      loginTime: new Date().toISOString(),
-      userType: loginType.value // 保存用户类型
+  try {
+    // 临时验证码验证（验证码API还没准备好，先使用固定验证码123456）
+    if (verificationCode.value !== '123456') {
+      uni.hideLoading()
+      uni.showToast({
+        title: '验证码错误，请输入123456',
+        icon: 'none',
+        duration: 2000
+      })
+      return
     }
     
-    uni.setStorageSync('token', mockToken)
-    uni.setStorageSync('userInfo', mockUserInfo)
-    uni.setStorageSync('loginTime', loginTime) // 设置登录时间标识
-
-    uni.showToast({
-      title: '登录成功',
-      icon: 'success',
-      duration: 1500
-    })
+    // 调用真实登录API
+    const response = await userAPI.login(
+      phoneNumber.value, 
+      verificationCode.value, 
+      loginType.value === 'counselor' ? 'CONSULTANT' : 'USER'
+    )
     
-    // 延迟后跳转到相应页面
-    setTimeout(() => {
+    uni.hideLoading()
+    
+    // 处理登录成功 - 后端直接返回token
+    if (response && (typeof response === 'string')) {
+      // 如果返回的是字符串，说明整个响应就是token
+      const token = response
+      // 保存token
+      uni.setStorageSync('token', token)
+      
+      const userInfo = {
+        phone: phoneNumber.value,
+        nickname: '用户' + phoneNumber.value.slice(-4),
+        avatar: 'http://127.0.0.1:8080/static/user/avatars/default.jpg',
+        loginTime: new Date().toISOString(),
+        userType: loginType.value,
+        token: token
+      }
+      
+      uni.setStorageSync('userInfo', userInfo)
+      uni.setStorageSync('loginTime', Date.now().toString())
+
       uni.showToast({
-        title: '欢迎回来！',
+        title: '登录成功',
         icon: 'success',
         duration: 1500
       })
       
+      // 延迟后跳转到相应页面
       setTimeout(() => {
-        // 根据登录类型跳转到不同页面
-        if (loginType.value === 'counselor') {
-          console.log('尝试跳转到咨询师页面')
-          uni.navigateTo({
-            url: '/pages/counselor/appointments',
-            success: () => {
-              console.log('成功跳转到咨询师预约页面')
-            },
-            fail: (err) => {
-              console.error('跳转失败:', err)
-              uni.showToast({
-                title: '页面跳转失败，请稍后重试',
-                icon: 'none',
-                duration: 2000
-              })
-              // 降级处理，跳转到首页
-              setTimeout(() => {
-                uni.reLaunch({
-                  url: '/pages/index/index'
+        uni.showToast({
+          title: '欢迎回来！',
+          icon: 'success',
+          duration: 1500
+        })
+        
+        setTimeout(() => {
+          // 根据登录类型跳转到不同页面
+          if (loginType.value === 'counselor') {
+            console.log('尝试跳转到咨询师页面')
+            uni.navigateTo({
+              url: '/pages/counselor/appointments',
+              success: () => {
+                console.log('成功跳转到咨询师预约页面')
+              },
+              fail: (err) => {
+                console.error('跳转失败:', err)
+                uni.showToast({
+                  title: '页面跳转失败，请稍后重试',
+                  icon: 'none',
+                  duration: 2000
                 })
-              }, 2000)
-            }
-          })
-        } else {
-          uni.reLaunch({
-            url: '/pages/profile/profile'
-          })
-        }
+                // 降级处理，跳转到首页
+                setTimeout(() => {
+                  uni.reLaunch({
+                    url: '/pages/index/index'
+                  })
+                }, 2000)
+              }
+            })
+          } else {
+            // 用户登录后直接跳转到个人信息页面完善资料
+            uni.reLaunch({
+              url: '/pages/profile/profile'
+            })
+          }
+        }, 1500)
       }, 1500)
-    }, 1500)
-  }, 1000) // 模拟网络延迟
+    } else {
+      // 登录失败 - 没有返回token
+      console.log('登录失败，服务器响应:', response)
+      uni.showToast({
+        title: '登录失败，请检查手机号和验证码',
+        icon: 'none',
+        duration: 2000
+      })
+    }
+  } catch (error) {
+    uni.hideLoading()
+    console.error('登录失败:', error)
+    
+    // 处理不同类型的错误
+    let errorMessage = '网络连接失败，请检查网络后重试'
+    
+    if (error.statusCode === 401) {
+      errorMessage = '验证码错误或已过期'
+    } else if (error.statusCode === 400) {
+      errorMessage = '请求参数错误，请检查手机号和验证码'
+    } else if (error.statusCode === 404) {
+      errorMessage = '用户不存在，请先注册'
+    } else if (error.data && error.data.message) {
+      errorMessage = error.data.message
+    }
+    
+    uni.showToast({
+      title: errorMessage,
+      icon: 'none',
+      duration: 3000
+    })
+  }
 }
 </script>
 

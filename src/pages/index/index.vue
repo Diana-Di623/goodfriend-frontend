@@ -167,6 +167,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { checkAndGuideUser } from '@/utils/user.js'
 
 const currentSlogan = ref(0)
 const hasNewMessage = ref(true)
@@ -511,14 +512,14 @@ function handleCounselorClick(counselor) {
 
 // 心理测评点击处理
 function handleTestClick(testType) {
-  if (checkLoginAndShowModal('心理测评')) {
+  checkAndGuideUser('心理测评功能', () => {
     goTest(testType)
-  }
+  })
 }
 
 // 心理推文点击处理
 function handleArticleClick(article) {
-  if (checkLoginAndShowModal('心理推文')) {
+  checkAndGuideUser('心理推文功能', () => {
     showLoadingWithProgress(1000, '正在打开心理推文...')
     setTimeout(() => {
       // 这里处理推文相关逻辑
@@ -529,13 +530,13 @@ function handleArticleClick(article) {
         icon: 'none',
         duration: 2000
       })
-    }, 1000)
-  }
+    }, 500)
+  })
 }
 
 // 心愿心语点击处理
 function handleWishClick() {
-  if (checkLoginAndShowModal('心愿心语')) {
+  checkAndGuideUser('心愿心语功能', () => {
     showLoadingWithProgress(1200, '正在打开心愿心语...')
     setTimeout(() => {
       unreadMessageCount.value = 0
@@ -543,12 +544,12 @@ function handleWishClick() {
         url: '/pages/wish/wish'
       })
     }, 500)
-  }
+  })
 }
 
 // 测评结果点击处理
 function goTestResults() {
-  if (checkLoginAndShowModal('测评结果')) {
+  checkAndGuideUser('测评结果功能', () => {
     showLoadingWithProgress(1200, '正在查看测评结果...')
     // 等待进度条动画结束后再跳转
     const unwatch = watch(isPageLoading, (val) => {
@@ -559,7 +560,7 @@ function goTestResults() {
         })
       }
     })
-  }
+  })
 }
 
 // 登录相关函数

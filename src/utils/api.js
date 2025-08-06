@@ -1,10 +1,10 @@
 // API 工具函数
-const BASE_URL = 'https://api.goodfriend-psychology.com'
+const BASE_URL = 'http://127.0.0.1:8080'
 
 // 通用请求函数
 function request(url, options = {}) {
   return new Promise((resolve, reject) => {
-    uni.request({
+    const requestConfig = {
       url: BASE_URL + url,
       method: options.method || 'GET',
       data: options.data || {},
@@ -12,15 +12,41 @@ function request(url, options = {}) {
         'Content-Type': 'application/json',
         'Authorization': uni.getStorageSync('token') || '',
         ...options.header
-      },
+      }
+    }
+    
+    // 打印请求详细信息
+    console.log('=== API请求详情 ===')
+    console.log('完整URL:', requestConfig.url)
+    console.log('请求方法:', requestConfig.method)
+    console.log('请求头:', JSON.stringify(requestConfig.header, null, 2))
+    console.log('请求数据:', JSON.stringify(requestConfig.data, null, 2))
+    console.log('==================')
+    
+    uni.request({
+      ...requestConfig,
       success: (res) => {
+        // 打印响应信息
+        console.log('=== API响应详情 ===')
+        console.log('响应状态码:', res.statusCode)
+        console.log('响应头:', JSON.stringify(res.header, null, 2))
+        console.log('响应数据:', JSON.stringify(res.data, null, 2))
+        console.log('==================')
+        
         if (res.statusCode === 200) {
           resolve(res.data)
         } else {
           reject(res)
         }
       },
-      fail: reject
+      fail: (error) => {
+        // 打印错误信息
+        console.log('=== API请求失败 ===')
+        console.log('错误信息:', JSON.stringify(error, null, 2))
+        console.log('请求URL:', requestConfig.url)
+        console.log('==================')
+        reject(error)
+      }
     })
   })
 }
@@ -58,11 +84,27 @@ export const wishAPI = {
 
 // 用户相关API
 export const userAPI = {
-  // 用户登录
-  login(username, password) {
-    return request('/user/login', {
+  // 发送验证码
+  sendVerificationCode(phone, role = 'USER') {
+    return request('/api/auth/send-code', {
       method: 'POST',
-      data: { username, password }
+      data: { phone, role }
+    })
+  },
+  
+  // 用户登录 - 支持手机号验证码登录
+  login(phone, code, role = 'USER') {
+    return request('/api/auth/login', {
+      method: 'POST',
+      data: { phone, code, role }
+    })
+  },
+  
+  // 咨询师登录
+  consultantLogin(phone, code) {
+    return request('/api/auth/login', {
+      method: 'POST',
+      data: { phone, code, role: 'CONSULTANT' }
     })
   },
   
@@ -76,12 +118,12 @@ export const userAPI = {
   
   // 获取用户信息
   getUserInfo() {
-    return request('/user/info')
+    return request('/api/user/profile')
   },
   
   // 更新用户信息
   updateUserInfo(userInfo) {
-    return request('/user/update', {
+    return request('/api/user/update', {
       method: 'PUT',
       data: userInfo
     })
@@ -126,6 +168,14 @@ export const counselorAPI = {
     return request('/counselor/book', {
       method: 'POST',
       data: { counselorId, time }
+    })
+  },
+  
+  // 申请成为咨询师
+  applyConsultant(applicationData) {
+    return request('/api/user/consultant/apply', {
+      method: 'POST',
+      data: applicationData
     })
   }
 }

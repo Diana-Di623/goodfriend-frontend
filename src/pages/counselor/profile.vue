@@ -696,7 +696,11 @@ function loadCounselorInfo() {
   
   // 尝试从本地存储加载咨询师申请信息
   try {
-    const application = uni.getStorageSync('counselorApplication')
+    const currentUser = uni.getStorageSync('userInfo')
+    const userId = currentUser?.phone || currentUser?.id || 'unknown'
+    const userApplicationKey = `counselorApplication_${userId}`
+    
+    const application = uni.getStorageSync(userApplicationKey)
     if (application) {
       counselorInfo.value = {
         ...counselorInfo.value,

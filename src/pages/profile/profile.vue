@@ -34,7 +34,7 @@
         <text class="label">头像</text>
         <view class="avatar-section" @click="chooseAvatar">
           <image 
-            :src="userInfo.avatar || '/static/logo.png'" 
+            :src="userInfo.avatar || 'http://127.0.0.1:8080/static/user/avatars/default.jpg'" 
             class="avatar-image"
           />
           <text class="change-text">点击更换</text>
@@ -325,6 +325,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { GENDER_OPTIONS, REGION_OPTIONS, BIRTHDAY_CONFIG, isValidGender, isValidBirthday, calculateAge, getGenderLabel } from '@/utils/constants.js'
+import { userAPI, counselorAPI } from '@/utils/api.js'
 
 // 未读消息数量
 const unreadMessageCount = ref(15)
@@ -359,7 +360,7 @@ const userInfo = ref({
   location: '', // 所在地区
   customLocation: '', // 自定义地区（当选择"其他"时）
   phone: '',
-  bio: ''
+  hobbies: ''
 })
 
 // 申请咨询师相关
@@ -427,9 +428,23 @@ function showLoadingWithProgress(duration = 500, text = '加载中...') {
   }, 30)
 }
 
+// 检查用户信息是否完整
+function isUserInfoComplete(userInfo) {
+  return !!(
+    userInfo &&
+    userInfo.nickname &&
+    userInfo.nickname.trim() &&
+    userInfo.gender &&
+    userInfo.birthday &&
+    userInfo.location &&
+    userInfo.phone
+  )
+}
+
 // 加载用户信息
-function loadUserInfo() {
+async function loadUserInfo() {
   try {
+    // 先从本地存储加载基本信息
     const storedInfo = uni.getStorageSync('userInfo') || {}
     userInfo.value = {
       avatar: storedInfo.avatar || '',
@@ -439,7 +454,7 @@ function loadUserInfo() {
       location: storedInfo.location || '',
       customLocation: storedInfo.customLocation || '',
       phone: storedInfo.phone || '',
-      bio: storedInfo.bio || ''
+      hobbies: storedInfo.hobbies || ''
     }
     
     // 设置地区选择器索引
@@ -447,6 +462,51 @@ function loadUserInfo() {
       const regionIndex = REGION_OPTIONS.findIndex(item => item.value === userInfo.value.location)
       if (regionIndex !== -1) {
         selectedRegionIndex.value = regionIndex
+      }
+    }
+    
+    // 如果有token，尝试从服务器加载用户信息
+    const token = uni.getStorageSync('token')
+    if (token) {
+      try {
+        console.log('从服务器加载用户信息...')
+        const response = await userAPI.getUserInfo()
+        console.log('服务器返回的用户信息:', response)
+        
+        if (response) {
+          // 更新用户信息
+          const serverUserInfo = {
+            avatar: response.avatar ? `http://127.0.0.1:8080/static/${response.avatar}` : userInfo.value.avatar,
+            nickname: response.name || userInfo.value.nickname,
+            gender: response.gender === 'MALE' ? '男' : (response.gender === 'FEMALE' ? '女' : userInfo.value.gender),
+            birthday: response.birthday || userInfo.value.birthday,
+            location: response.region || userInfo.value.location,
+            customLocation: userInfo.value.customLocation,
+            phone: userInfo.value.phone,
+            hobbies: response.hobby || userInfo.value.hobbies
+          }
+          
+          userInfo.value = serverUserInfo
+          
+          // 重新设置地区选择器索引
+          if (userInfo.value.location) {
+            const regionIndex = REGION_OPTIONS.findIndex(item => item.value === userInfo.value.location)
+            if (regionIndex !== -1) {
+              selectedRegionIndex.value = regionIndex
+            }
+          }
+          
+          // 更新本地存储
+          const updatedUserInfo = {
+            ...storedInfo,
+            ...serverUserInfo,
+            age: response.age || storedInfo.age
+          }
+          uni.setStorageSync('userInfo', updatedUserInfo)
+        }
+      } catch (error) {
+        console.error('从服务器加载用户信息失败:', error)
+        // 服务器加载失败时继续使用本地信息
       }
     }
   } catch (error) {
@@ -480,6 +540,29 @@ function onRegionChange(e) {
 
 // 首页导航
 function goHome() {
+  // 检查登录状态
+  const token = uni.getStorageSync('token')
+  if (!token) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none',
+      duration: 2000
+    })
+    return
+  }
+  
+  // 检查个人信息是否完整
+  const storedUserInfo = uni.getStorageSync('userInfo')
+  if (!isUserInfoComplete(storedUserInfo)) {
+    uni.showModal({
+      title: '请先完善个人信息',
+      content: '使用完整功能前，请先完善您的个人资料，包括昵称、性别、生日、地区等信息',
+      showCancel: false,
+      confirmText: '我知道了'
+    })
+    return
+  }
+  
   // 显示进度条加载动画
   showLoadingWithProgress(800, '正在跳转首页...')
   
@@ -505,6 +588,18 @@ function handleWishClick() {
     return
   }
   
+  // 检查个人信息是否完整
+  const storedUserInfo = uni.getStorageSync('userInfo')
+  if (!isUserInfoComplete(storedUserInfo)) {
+    uni.showModal({
+      title: '请先完善个人信息',
+      content: '使用心愿心语功能前，请先完善您的个人资料',
+      showCancel: false,
+      confirmText: '我知道了'
+    })
+    return
+  }
+  
   // 显示进度条加载动画
   showLoadingWithProgress(1000, '正在打开心愿心语...')
   
@@ -524,6 +619,18 @@ function goTestResults() {
       title: '需要会员登录才能使用此功能',
       icon: 'none',
       duration: 2000
+    })
+    return
+  }
+  
+  // 检查个人信息是否完整
+  const storedUserInfo = uni.getStorageSync('userInfo')
+  if (!isUserInfoComplete(storedUserInfo)) {
+    uni.showModal({
+      title: '请先完善个人信息',
+      content: '使用测评功能前，请先完善您的个人资料',
+      showCancel: false,
+      confirmText: '我知道了'
     })
     return
   }
@@ -554,7 +661,7 @@ function chooseAvatar() {
 }
 
 // 保存用户信息
-function saveUserInfo() {
+async function saveUserInfo() {
   // 验证必填字段
   if (!userInfo.value.nickname.trim()) {
     uni.showToast({
@@ -612,50 +719,75 @@ function saveUserInfo() {
     title: '保存中...'
   })
 
-  // 模拟保存过程
-  setTimeout(() => {
-    try {
-      // 确定最终的地区显示
-      const finalLocation = userInfo.value.location === '其他' 
-        ? userInfo.value.customLocation 
-        : userInfo.value.location
-      
-      // 计算年龄（用于后续使用）
-      const age = calculateAge(userInfo.value.birthday)
-      
-      // 获取现有信息并添加详细信息完成标记
-      const updatedUserInfo = {
-        ...userInfo.value,
-        location: finalLocation, // 使用处理后的地区
-        age: age, // 根据生日计算的年龄
-        detailedInfoCompleted: true,  // 标记详细信息已完成
-        updatedAt: new Date().toISOString()
-      }
-      
-      // 保存到本地存储
-      uni.setStorageSync('userInfo', updatedUserInfo)
-      
-      uni.hideLoading()
-      uni.showToast({
-        title: '保存成功',
-        icon: 'success'
-      })
-      
-      // 延迟跳转到首页
-      setTimeout(() => {
-        uni.reLaunch({
-          url: '/pages/index/index'
-        })
-      }, 1500)
-    } catch (error) {
-      uni.hideLoading()
-      uni.showToast({
-        title: '保存失败，请重试',
-        icon: 'none'
-      })
-      console.error('保存用户信息失败:', error)
+  try {
+    // 确定最终的地区显示
+    const finalLocation = userInfo.value.location === '其他' 
+      ? userInfo.value.customLocation 
+      : userInfo.value.location
+    
+    // 计算年龄（用于后续使用）
+    const age = calculateAge(userInfo.value.birthday)
+    
+    // 构造符合后端API格式的数据
+    const updateData = {
+      name: userInfo.value.nickname,
+      age: age,
+      gender: userInfo.value.gender === '男' ? 'MALE' : 'FEMALE',
+      region: finalLocation,
+      avatar: userInfo.value.avatar ? userInfo.value.avatar.replace('http://127.0.0.1:8080/static/', '') : 'user/avatars/default.jpg',
+      birthday: userInfo.value.birthday,
+      hobby: userInfo.value.hobbies || ''
     }
-  }, 1000)
+    
+    console.log('发送给后端的用户信息:', updateData)
+    
+    // 调用真实的更新API
+    const response = await userAPI.updateUserInfo(updateData)
+    
+    console.log('后端响应:', response)
+    
+    // 保存到本地存储
+    const updatedUserInfo = {
+      ...userInfo.value,
+      nickname: updateData.name,
+      location: finalLocation,
+      age: age,
+      detailedInfoCompleted: true,
+      updatedAt: new Date().toISOString()
+    }
+    
+    uni.setStorageSync('userInfo', updatedUserInfo)
+    
+    uni.hideLoading()
+    uni.showToast({
+      title: '保存成功',
+      icon: 'success'
+    })
+    
+    // 保存成功后重新加载用户信息，但不跳转页面
+    setTimeout(() => {
+      loadUserInfo()
+    }, 1000)
+    
+  } catch (error) {
+    uni.hideLoading()
+    console.error('保存用户信息失败:', error)
+    
+    let errorMessage = '保存失败，请重试'
+    if (error.statusCode === 400) {
+      errorMessage = '请检查输入信息格式'
+    } else if (error.statusCode === 401) {
+      errorMessage = '登录已过期，请重新登录'
+    } else if (error.data && error.data.message) {
+      errorMessage = error.data.message
+    }
+    
+    uni.showToast({
+      title: errorMessage,
+      icon: 'none',
+      duration: 3000
+    })
+  }
 }
 
 // 修改密码
@@ -719,30 +851,56 @@ function handleLogout() {
 // 申请咨询师
 function applyCounselor() {
   // 检查用户是否已完善个人信息
-  const userInfo = uni.getStorageSync('userInfo')
-  if (!userInfo || !userInfo.nickname || !userInfo.phone) {
+  const storedUserInfo = uni.getStorageSync('userInfo')
+  if (!isUserInfoComplete(storedUserInfo)) {
     uni.showModal({
       title: '请先完善个人信息',
-      content: '申请成为咨询师前，请先完善您的个人资料',
+      content: '申请成为咨询师前，请先完善您的个人资料，包括昵称、性别、生日、地区等信息',
       showCancel: false,
-      confirmText: '知道了'
+      confirmText: '去完善',
+      success: (res) => {
+        if (res.confirm) {
+          // 滚动到页面顶部
+          uni.pageScrollTo({
+            scrollTop: 0,
+            duration: 300
+          })
+        }
+      }
     })
     return
   }
 
-  // 检查是否已经申请过
-  const existingApplication = uni.getStorageSync('counselorApplication')
+  // 允许多次申请 - 检查当前用户的申请状态
+  const currentUser = uni.getStorageSync('userInfo')
+  const userId = currentUser?.phone || currentUser?.id || 'unknown'
+  const userApplicationKey = `counselorApplication_${userId}`
+  
+  const existingApplication = uni.getStorageSync(userApplicationKey)
   if (existingApplication && existingApplication.status === 'pending') {
     uni.showModal({
-      title: '申请审核中',
-      content: '您的咨询师申请正在审核中，请耐心等待管理员审核结果',
-      showCancel: false,
-      confirmText: '知道了'
+      title: '再次申请',
+      content: '检测到您之前已提交过申请。您可以再次提交新的申请，新申请将覆盖之前的申请。',
+      showCancel: true,
+      cancelText: '取消',
+      confirmText: '继续申请',
+      success: (res) => {
+        if (res.confirm) {
+          // 用户选择继续申请，继续执行后续代码
+          initializeApplicationForm()
+        }
+        // 如果用户取消，则不执行任何操作
+      }
     })
     return
   }
 
   // 初始化申请表单
+  initializeApplicationForm()
+}
+
+// 初始化申请表单的函数
+function initializeApplicationForm() {
   counselorApplication.value = {
     realName: '',
     idCard: '',
@@ -789,7 +947,7 @@ function toggleSpecialty(specialty) {
 }
 
 // 提交申请
-function submitCounselorApplication() {
+async function submitCounselorApplication() {
   const app = counselorApplication.value
   
   // 表单验证
@@ -845,53 +1003,92 @@ function submitCounselorApplication() {
 
   uni.showLoading({ title: '提交中...' })
 
-  // 模拟提交过程
-  setTimeout(() => {
-    try {
-      // 构造申请数据
-      const applicationData = {
-        ...app,
-        education: educationOptions[app.educationIndex],
-        userId: uni.getStorageSync('userInfo')?.id || Date.now(),
-        appliedAt: new Date().toISOString(),
-        status: 'pending' // pending, approved, rejected
-      }
-      
-      // 保存申请数据到本地（实际项目中应该发送到服务器）
-      uni.setStorageSync('counselorApplication', applicationData)
-      
-      // 同时保存到申请列表（供管理员查看）
-      const applications = uni.getStorageSync('counselorApplications') || []
-      applications.push(applicationData)
-      uni.setStorageSync('counselorApplications', applications)
-      
-      uni.hideLoading()
-      uni.showToast({
-        title: '申请提交成功',
-        icon: 'success'
-      })
-      
-      showCounselorModal.value = false
-      
-      // 显示后续流程提示
-      setTimeout(() => {
-        uni.showModal({
-          title: '申请已提交',
-          content: '您的咨询师申请已提交，我们将在3-5个工作日内完成审核，请耐心等待审核结果。',
-          showCancel: false,
-          confirmText: '知道了'
-        })
-      }, 1500)
-      
-    } catch (error) {
-      uni.hideLoading()
-      uni.showToast({
-        title: '提交失败，请重试',
-        icon: 'none'
-      })
-      console.error('提交申请失败:', error)
+  try {
+    // 构造符合API格式的申请数据
+    const applicationData = {
+      name: app.realName,
+      idCardNumber: app.idCard,
+      phone: app.phone,
+      education: educationOptions[app.educationIndex],
+      university: app.university,
+      major: app.major,
+      licenseNumber: app.licenseNumber,
+      experienceYears: parseInt(app.experience) || 0,
+      specialty: app.specialties,
+      bio: app.bio,
+      reason: app.reason
     }
-  }, 1500)
+    
+    // 调用咨询师申请API
+    const response = await counselorAPI.applyConsultant(applicationData)
+    
+    uni.hideLoading()
+    
+    console.log('咨询师申请API响应:', response)
+    
+    // 检查响应是否包含错误信息
+    if (response && response.message) {
+      // 后端返回了业务错误信息
+      uni.showToast({
+        title: response.message,
+        icon: 'none',
+        duration: 3000
+      })
+      return
+    }
+    
+    // API调用成功 - 保存申请数据到本地
+    const currentUser = uni.getStorageSync('userInfo')
+    const userId = currentUser?.phone || currentUser?.id || Date.now()
+    const userApplicationKey = `counselorApplication_${userId}`
+    
+    const localApplicationData = {
+      ...applicationData,
+      userId: userId,
+      appliedAt: new Date().toISOString(),
+      status: 'pending'
+    }
+    uni.setStorageSync(userApplicationKey, localApplicationData)
+    
+    uni.showToast({
+      title: '申请提交成功',
+      icon: 'success'
+    })
+    
+    showCounselorModal.value = false
+    
+    // 显示后续流程提示
+    setTimeout(() => {
+      uni.showModal({
+        title: '申请已提交',
+        content: '您的咨询师申请已提交成功，我们将在3-5个工作日内完成审核，请耐心等待审核结果。',
+        showCancel: false,
+        confirmText: '知道了'
+      })
+    }, 1500)
+    
+  } catch (error) {
+    uni.hideLoading()
+    console.error('申请咨询师失败:', error)
+    
+    // 处理不同类型的错误
+    let errorMessage = '网络连接失败，请检查网络后重试'
+    
+    // 优先检查后端返回的具体错误信息
+    if (error.data && error.data.message) {
+      errorMessage = error.data.message
+    } else if (error.statusCode === 400) {
+      errorMessage = '申请信息有误，请检查填写内容'
+    } else if (error.statusCode === 401) {
+      errorMessage = '登录状态已过期，请重新登录'
+    }
+    
+    uni.showToast({
+      title: errorMessage,
+      icon: 'none',
+      duration: 3000
+    })
+  }
 }
 </script>
 
