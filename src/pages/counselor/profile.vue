@@ -42,7 +42,7 @@
         <view class="basic-info">
           <view class="name-section">
             <text class="counselor-name">{{ counselorInfo.realName || '咨询师姓名' }}</text>
-            <text class="edit-btn" @click="editName">编辑</text>
+            <text class="edit-btn" @click="editName">编辑信息</text>
           </view>
           <text class="counselor-title">{{ counselorInfo.title || '心理咨询师' }}</text>
           <view class="location-info">
@@ -265,18 +265,22 @@
       </view>
     </view>
 
-    <!-- 编辑姓名弹窗 -->
+    <!-- 编辑基本信息弹窗 -->
     <view v-if="showNameModal" class="edit-modal">
       <view class="modal-overlay" @click="closeNameModal"></view>
       <view class="modal-content">
         <view class="modal-header">
-          <text class="modal-title">编辑姓名</text>
+          <text class="modal-title">编辑基本信息</text>
           <view class="close-btn" @click="closeNameModal">✕</view>
         </view>
         <view class="modal-body">
           <view class="setting-group">
             <text class="setting-label">真实姓名</text>
             <input v-model="editingName" placeholder="请输入真实姓名" class="edit-input" maxlength="20" />
+          </view>
+          <view class="setting-group">
+            <text class="setting-label">所在地区</text>
+            <input v-model="editingLocation" placeholder="请输入所在地区（如：北京·朝阳）" class="edit-input" maxlength="30" />
           </view>
         </view>
         <view class="modal-footer">
@@ -608,6 +612,7 @@ const showBioModal = ref(false)
 const editingBio = ref('')
 const showNameModal = ref(false)
 const editingName = ref('')
+const editingLocation = ref('')
 
 // 其他编辑弹窗状态
 const showEducationModal = ref(false)
@@ -790,6 +795,7 @@ function editBio() {
 // 编辑姓名
 function editName() {
   editingName.value = counselorInfo.value.realName || ''
+  editingLocation.value = counselorInfo.value.location || ''
   showNameModal.value = true
 }
 
@@ -823,7 +829,7 @@ function saveBio() {
   })
 }
 
-// 保存姓名
+// 保存姓名和地址
 function saveName() {
   // 验证姓名不能为空
   if (!editingName.value.trim()) {
@@ -843,14 +849,24 @@ function saveName() {
     return
   }
   
+  // 验证地址不能为空
+  if (!editingLocation.value.trim()) {
+    uni.showToast({
+      title: '请填写所在地区',
+      icon: 'none'
+    })
+    return
+  }
+  
   counselorInfo.value.realName = editingName.value.trim()
   // 同步到用户端显示字段
   counselorInfo.value.name = editingName.value.trim()
+  counselorInfo.value.location = editingLocation.value.trim()
   
   saveCounselorInfo()
   showNameModal.value = false
   uni.showToast({
-    title: '姓名保存成功',
+    title: '基本信息保存成功',
     icon: 'success'
   })
 }
