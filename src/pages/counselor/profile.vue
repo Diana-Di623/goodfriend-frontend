@@ -45,8 +45,20 @@
             <text class="edit-btn" @click="editName">编辑</text>
           </view>
           <text class="counselor-title">{{ counselorInfo.title || '心理咨询师' }}</text>
+          <view class="location-info">
+            <text class="location-icon">📍</text>
+            <text class="location-text">{{ counselorInfo.location || '所在地区' }}</text>
+          </view>
           <view class="rating-info">
-            <text class="rating">⭐ {{ counselorInfo.rating || '5.0' }}</text>
+            <view class="star-rating">
+              <text 
+                v-for="i in 5" 
+                :key="i" 
+                class="star" 
+                :class="{ filled: i <= Math.floor(parseFloat(counselorInfo.rating || '5.0')) }"
+              >⭐</text>
+              <text class="rating-number">{{ counselorInfo.rating || '5.0' }}</text>
+            </view>
             <text class="experience">{{ counselorInfo.experience || '0' }}年经验</text>
           </view>
         </view>
@@ -61,6 +73,10 @@
           <view class="stat-item">
             <text class="stat-number">{{ counselorInfo.stats?.caseHours || 0 }}</text>
             <text class="stat-label">个案时长(小时)</text>
+          </view>
+          <view class="stat-item">
+            <text class="stat-number">{{ counselorInfo.experience || 0 }}</text>
+            <text class="stat-label">从业年限</text>
           </view>
           <view class="stat-item">
             <text class="stat-number">{{ counselorInfo.stats?.trainingHours || 0 }}</text>
@@ -289,10 +305,18 @@
                 <text class="item-title">教育经历 {{ index + 1 }}</text>
                 <view class="remove-btn" @click="removeEducation(index)">删除</view>
               </view>
-              <input v-model="education.degree" placeholder="学历（如：本科、硕士）" class="edit-input" />
-              <input v-model="education.school" placeholder="学校名称" class="edit-input" />
-              <input v-model="education.major" placeholder="专业" class="edit-input" />
-              <input v-model="education.year" placeholder="时间（如：2018-2022）" class="edit-input" />
+              <view class="specialty-edit-item">
+                <input v-model="education.degree" placeholder="学历（如：本科、硕士）" class="edit-input" />
+              </view>
+              <view class="specialty-edit-item">
+                <input v-model="education.school" placeholder="学校名称" class="edit-input" />
+              </view>
+              <view class="specialty-edit-item">
+                <input v-model="education.major" placeholder="专业" class="edit-input" />
+              </view>
+              <view class="specialty-edit-item">
+                <input v-model="education.year" placeholder="时间（如：2018-2022）" class="edit-input" />
+              </view>
             </view>
             <view class="add-btn" @click="addEducation">+ 添加教育经历</view>
           </view>
@@ -323,10 +347,18 @@
                 <text class="item-title">工作经历 {{ index + 1 }}</text>
                 <view class="remove-btn" @click="removeExperience(index)">删除</view>
               </view>
-              <input v-model="experience.company" placeholder="公司名称" class="edit-input" />
-              <input v-model="experience.position" placeholder="职位" class="edit-input" />
-              <input v-model="experience.duration" placeholder="工作时间" class="edit-input" />
-              <textarea v-model="experience.description" placeholder="工作描述" class="edit-textarea" />
+              <view class="specialty-edit-item">
+                <input v-model="experience.company" placeholder="公司名称" class="edit-input" />
+              </view>
+              <view class="specialty-edit-item">
+                <input v-model="experience.position" placeholder="职位" class="edit-input" />
+              </view>
+              <view class="specialty-edit-item">
+                <input v-model="experience.duration" placeholder="工作时间" class="edit-input" />
+              </view>
+              <view class="specialty-edit-item">
+                <textarea v-model="experience.description" placeholder="工作描述" class="edit-textarea" />
+              </view>
             </view>
             <view class="add-btn" @click="addExperience">+ 添加工作经历</view>
           </view>
@@ -357,10 +389,18 @@
                 <text class="item-title">证书 {{ index + 1 }}</text>
                 <view class="remove-btn" @click="removeCertificate(index)">删除</view>
               </view>
-              <input v-model="certificate.name" placeholder="证书名称" class="edit-input" />
-              <input v-model="certificate.number" placeholder="证书编号" class="edit-input" />
-              <input v-model="certificate.issuer" placeholder="发证机构" class="edit-input" />
-              <input v-model="certificate.date" placeholder="获证时间" class="edit-input" />
+              <view class="specialty-edit-item">
+                <input v-model="certificate.name" placeholder="证书名称" class="edit-input" />
+              </view>
+              <view class="specialty-edit-item">
+                <input v-model="certificate.number" placeholder="证书编号" class="edit-input" />
+              </view>
+              <view class="specialty-edit-item">
+                <input v-model="certificate.issuer" placeholder="发证机构" class="edit-input" />
+              </view>
+              <view class="specialty-edit-item">
+                <input v-model="certificate.date" placeholder="获证时间" class="edit-input" />
+              </view>
             </view>
             <view class="add-btn" @click="addCertificate">+ 添加证书</view>
           </view>
@@ -529,6 +569,10 @@
           <view class="setting-group">
             <text class="setting-label">个案时长（小时）</text>
             <input v-model="editingStats.caseHours" type="number" placeholder="请输入个案时长" class="edit-input" />
+          </view>
+          <view class="setting-group">
+            <text class="setting-label">从业年限</text>
+            <input v-model="editingStats.experienceYears" type="number" placeholder="请输入从业年限" class="edit-input" />
           </view>
           <view class="setting-group">
             <text class="setting-label">受训时长（小时）</text>
@@ -1023,12 +1067,13 @@ function savePublicSettings() {
 function saveStats() {
   // 验证数值有效性
   const caseHours = parseInt(editingStats.value.caseHours) || 0
+  const experienceYears = parseInt(editingStats.value.experienceYears) || 0
   const trainingHours = parseInt(editingStats.value.trainingHours) || 0
   const supervisionHours = parseInt(editingStats.value.supervisionHours) || 0
   
-  if (caseHours < 0 || trainingHours < 0 || supervisionHours < 0) {
+  if (caseHours < 0 || experienceYears < 0 || trainingHours < 0 || supervisionHours < 0) {
     uni.showToast({
-      title: '时长不能为负数',
+      title: '数值不能为负数',
       icon: 'none'
     })
     return
@@ -1041,6 +1086,9 @@ function saveStats() {
     trainingHours: trainingHours,
     supervisionHours: supervisionHours
   }
+  
+  // 更新从业年限
+  counselorInfo.value.experience = experienceYears
   
   saveCounselorInfo()
   showStatsModal.value = false
@@ -1178,6 +1226,7 @@ function editSpecialties() {
 function editStats() {
   editingStats.value = {
     caseHours: counselorInfo.value.stats?.caseHours || 0,
+    experienceYears: counselorInfo.value.experience || 0,
     trainingHours: counselorInfo.value.stats?.trainingHours || 0,
     supervisionHours: counselorInfo.value.stats?.supervisionHours || 0
   }
@@ -1263,7 +1312,7 @@ function goAppointments() {
 
 .header {
   background: #fff;
-  padding: 44rpx 32rpx 20rpx;
+  padding: 44rpx 16rpx 20rpx;
   border-bottom: 1rpx solid #f0f0f0;
 }
 
@@ -1301,7 +1350,7 @@ function goAppointments() {
 }
 
 .profile-card {
-  margin: 32rpx;
+  margin: 16rpx;
   background: #fff;
   border-radius: 16rpx;
   padding: 32rpx;
@@ -1359,10 +1408,49 @@ function goAppointments() {
   margin-bottom: 16rpx;
 }
 
+.location-info {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-bottom: 16rpx;
+}
+
+.location-icon {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.location-text {
+  font-size: 24rpx;
+  color: #666;
+}
+
 .rating-info {
   display: flex;
   align-items: center;
   gap: 24rpx;
+}
+
+.star-rating {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+}
+
+.star {
+  font-size: 20rpx;
+  color: #e0e0e0;
+  transition: color 0.3s;
+}
+
+.star.filled {
+  color: #ff9800;
+}
+
+.rating-number {
+  font-size: 24rpx;
+  color: #ff9800;
+  margin-left: 8rpx;
 }
 
 .rating {
@@ -1415,8 +1503,9 @@ function goAppointments() {
 
 /* 统计数据网格样式 */
 .stats-grid {
-  display: flex;
-  justify-content: space-around;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20rpx;
   background: linear-gradient(135deg, #f8f9fa, #e3f2fd);
   border-radius: 12rpx;
   padding: 24rpx;
@@ -1428,6 +1517,9 @@ function goAppointments() {
   flex-direction: column;
   align-items: center;
   text-align: center;
+  padding: 12rpx;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 8rpx;
 }
 
 .stat-number {
@@ -1444,7 +1536,7 @@ function goAppointments() {
 }
 
 .info-section {
-  margin: 24rpx 32rpx;
+  margin: 24rpx 16rpx;
   background: #fff;
   border-radius: 16rpx;
   padding: 32rpx;
@@ -1832,20 +1924,23 @@ function goAppointments() {
 }
 
 .modal-content {
-  width: 90%;
-  max-width: 600rpx;
+  width: 98%;
+  max-width: 800rpx;
+  max-height: 80vh;
   background: #fff;
   border-radius: 20rpx;
   display: flex;
   flex-direction: column;
   z-index: 10001;
+  overflow: hidden;
+  margin: auto;
 }
 
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 40rpx 32rpx 20rpx;
+  padding: 30rpx 20rpx 16rpx;
   border-bottom: 1rpx solid #f0f0f0;
 }
 
@@ -1873,13 +1968,18 @@ function goAppointments() {
 }
 
 .modal-body {
-  padding: 32rpx;
+  padding: 30rpx 20rpx;
+  flex: 1;
+  overflow-y: auto;
+  max-height: calc(80vh - 200rpx);
+  display: flex;
+  flex-direction: column;
 }
 
 .bio-textarea {
-  width: 100%;
+  width: 95%;
   min-height: 200rpx;
-  padding: 20rpx;
+  padding: 24rpx;
   border: 2rpx solid #e8e8e8;
   border-radius: 12rpx;
   font-size: 28rpx;
@@ -1888,6 +1988,9 @@ function goAppointments() {
   line-height: 1.5;
   box-sizing: border-box;
   resize: none;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
 }
 
 .bio-textarea:focus {
@@ -1905,7 +2008,7 @@ function goAppointments() {
 .modal-footer {
   display: flex;
   gap: 24rpx;
-  padding: 24rpx 32rpx 40rpx;
+  padding: 16rpx 20rpx 30rpx;
   border-top: 1rpx solid #f0f0f0;
 }
 
@@ -1942,14 +2045,59 @@ function goAppointments() {
 /* 大型弹窗样式 */
 .large-modal {
   width: 95%;
-  max-width: 700rpx;
-  max-height: 90vh;
+  max-width: 780rpx;
+  max-height: 80vh;
+  margin: 10vh auto;
+  overflow: hidden;
+}
+
+/* 小屏幕适配 */
+@media screen and (max-width: 750rpx) {
+  .large-modal {
+    width: 94%;
+    max-width: 720rpx;
+    margin: 8vh auto;
+  }
+}
+
+@media screen and (max-width: 600rpx) {
+  .large-modal {
+    width: 96%;
+    max-width: 680rpx;
+    margin: 6vh auto;
+  }
 }
 
 .modal-body-scroll {
   flex: 1;
-  padding: 32rpx;
-  max-height: 70vh;
+  padding: 30rpx 20rpx;
+  max-height: 60vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 小屏幕下调整模态框内边距 */
+@media screen and (max-width: 600rpx) {
+  .modal-content {
+    width: 98%;
+    max-width: 750rpx;
+  }
+  
+  .modal-body {
+    padding: 20rpx 16rpx;
+  }
+  
+  .modal-body-scroll {
+    padding: 20rpx 16rpx;
+  }
+  
+  .modal-header {
+    padding: 24rpx 20rpx 16rpx;
+  }
+  
+  .modal-footer {
+    padding: 16rpx 20rpx 24rpx;
+  }
 }
 
 /* 编辑列表样式 */
@@ -1957,13 +2105,17 @@ function goAppointments() {
   display: flex;
   flex-direction: column;
   gap: 32rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .edit-item {
   background: #f8f9fa;
-  padding: 24rpx;
+  padding: 40rpx;
   border-radius: 12rpx;
   border: 2rpx solid #e8e8e8;
+  width: 95%;
+  box-sizing: border-box;
 }
 
 .item-header {
@@ -2011,7 +2163,7 @@ function goAppointments() {
 }
 
 .edit-textarea {
-  width: 100%;
+  width: 93%;
   min-height: 120rpx;
   padding: 20rpx;
   margin-bottom: 16rpx;
@@ -2021,6 +2173,9 @@ function goAppointments() {
   color: #333;
   background: #fff;
   box-sizing: border-box;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
   resize: none;
   line-height: 1.5;
 }
@@ -2092,13 +2247,26 @@ function goAppointments() {
 .specialty-edit-item {
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: 8rpx;
   margin-bottom: 16rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .specialty-edit-item .edit-input {
   flex: 1;
   margin-bottom: 0;
+  width: auto;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.specialty-edit-item .edit-textarea {
+  flex: 1;
+  margin-bottom: 0;
+  width: auto;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .remove-btn-small {
@@ -2160,6 +2328,23 @@ function goAppointments() {
   color: #ec407a;
   font-size: 24rpx;
   font-weight: 500;
+}
+
+/* 模态框内容居中 */
+.modal-content .modal-title {
+  text-align: center;
+}
+
+.modal-content .edit-input,
+.modal-content textarea {
+  text-align: left;
+}
+
+.modal-content label,
+.modal-content .form-label {
+  text-align: left;
+  display: block;
+  margin-bottom: 16rpx;
 }
 
 .add-btn-small:active {

@@ -478,7 +478,9 @@ async function loadUserInfo() {
           const serverUserInfo = {
             avatar: response.avatar ? `http://127.0.0.1:8080/static/${response.avatar}` : userInfo.value.avatar,
             nickname: response.name || userInfo.value.nickname,
-            gender: response.gender === 'MALE' ? '男' : (response.gender === 'FEMALE' ? '女' : userInfo.value.gender),
+            gender: response.gender === 'MALE' ? '男' : 
+                   response.gender === 'FEMALE' ? '女' : 
+                   response.gender === 'UNKNOWN' ? '未知' : userInfo.value.gender,
             birthday: response.birthday || userInfo.value.birthday,
             location: response.region || userInfo.value.location,
             customLocation: userInfo.value.customLocation,
@@ -732,7 +734,8 @@ async function saveUserInfo() {
     const updateData = {
       name: userInfo.value.nickname,
       age: age,
-      gender: userInfo.value.gender === '男' ? 'MALE' : 'FEMALE',
+      gender: userInfo.value.gender === '男' ? 'MALE' : 
+              userInfo.value.gender === '女' ? 'FEMALE' : 'UNKNOWN',
       region: finalLocation,
       avatar: userInfo.value.avatar ? userInfo.value.avatar.replace('http://127.0.0.1:8080/static/', '') : 'user/avatars/default.jpg',
       birthday: userInfo.value.birthday,
