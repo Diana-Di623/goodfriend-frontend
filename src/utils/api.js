@@ -1,16 +1,94 @@
 // API 工具函数
 const BASE_URL = 'http://127.0.0.1:8080'
 
+// 辅助函数：处理头像URL
+// 添加智能头像URL处理函数
+function getSmartAvatarUrl(avatarPath) {
+  if (!avatarPath) return ''
+  
+  const possiblePaths = []
+  
+  if (avatarPath.startsWith('consultant/avatars/')) {
+    possiblePaths.push(BASE_URL + '/static/' + avatarPath) // http://127.0.0.1:8080/static/consultant/avatars/3.png
+  }
+  
+  console.log('=== 智能头像URL处理 ===')
+  console.log('原始路径:', avatarPath)
+  console.log('尝试的路径格式:', possiblePaths)
+  
+  // 返回可能的路径
+  return possiblePaths[0] || processAvatarUrl(avatarPath)
+}
+
+function processAvatarUrl(avatarPath) {
+  if (!avatarPath) return ''
+  
+  console.log('=== 处理头像URL ===')
+  console.log('原始路径:', avatarPath)
+  
+  // 如果已经是完整URL，直接返回
+  if (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')) {
+    console.log('检测到完整URL，直接返回')
+    return avatarPath
+  }
+  const imageExtensions = ['.png', '.jpg']
+  const hasImageExtension = imageExtensions.some(ext => avatarPath.toLowerCase().includes(ext))
+  
+  if (avatarPath.includes('tmp/') && hasImageExtension) {
+    console.log('检测到临时路径格式，进行转换')
+    // 提取文件名部分
+    const fileName = avatarPath.split('/').pop()
+    const convertedPath = BASE_URL + '/consultant/avatars/' + fileName
+    console.log('转换后路径:', convertedPath)
+    return convertedPath
+  }
+  
+  // 如果路径格式是 "consultant/avatars/xxx.png"，说明是标准相对路径
+  if (avatarPath.startsWith('consultant/avatars/')) {
+    console.log('检测到标准相对路径格式')
+    const fullPath = BASE_URL + '/static/' + avatarPath
+    console.log('拼接后路径:', fullPath)
+    return fullPath
+  }
+}
+
+// 智能导航函数：自动管理页面栈
+function smartNavigate(options) {
+  return new Promise((resolve, reject) => {
+    // 获取当前页面栈
+    const pages = getCurrentPages()
+    console.log('当前页面栈长度:', pages.length)
+    
+    // 如果页面栈接近限制（8个以上），使用redirectTo
+    if (pages.length >= 8) {
+      console.log('页面栈过深，使用redirectTo')
+      uni.redirectTo({
+        ...options,
+        success: resolve,
+        fail: reject
+      })
+    } else {
+      console.log('正常导航，使用navigateTo')
+      uni.navigateTo({
+        ...options,
+        success: resolve,
+        fail: reject
+      })
+    }
+  })
+}
+
 // 通用请求函数
 function request(url, options = {}) {
   return new Promise((resolve, reject) => {
+    const token = uni.getStorageSync('token') || ''
     const requestConfig = {
       url: BASE_URL + url,
       method: options.method || 'GET',
       data: options.data || {},
       header: {
         'Content-Type': 'application/json',
-        'Authorization': uni.getStorageSync('token') || '',
+        'Authorization': token ? `Bearer ${token}` : '',
         ...options.header
       }
     }
@@ -19,6 +97,7 @@ function request(url, options = {}) {
     console.log('=== API请求详情 ===')
     console.log('完整URL:', requestConfig.url)
     console.log('请求方法:', requestConfig.method)
+    console.log('Token信息:', token ? `Bearer ${token.substring(0, 20)}...` : '无Token')
     console.log('请求头:', JSON.stringify(requestConfig.header, null, 2))
     console.log('请求数据:', JSON.stringify(requestConfig.data, null, 2))
     console.log('==================')
@@ -177,6 +256,89 @@ export const counselorAPI = {
       method: 'POST',
       data: applicationData
     })
+  },
+  
+  // 更新咨询师信息
+  updateConsultant(consultantData) {
+    return request('/api/consultant/update', {
+      method: 'PUT',
+      data: consultantData
+    })
+  },
+  
+  // 获取当前咨询师信息
+  getConsultantProfile() {
+    return request('/api/consultant/profile', {
+      method: 'GET'
+    })
+  },
+  
+  // 上传咨询师头像
+  uploadConsultantAvatar(filePath) {
+    return new Promise((resolve, reject) => {
+      const token = uni.getStorageSync('token') || ''
+      
+      console.log('=== 头像上传请求 ===')
+      console.log('文件路径:', filePath)
+      console.log('Token信息:', token ? `Bearer ${token.substring(0, 20)}...` : '无Token')
+  console.log('API地址:', BASE_URL + '/api/consultant/avatar')
+      console.log('==================')
+      
+      uni.uploadFile({
+  url: BASE_URL + '/api/consultant/avatar',
+        filePath: filePath,
+        name: 'file',
+        header: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        success: (res) => {
+          console.log('=== 头像上传响应 ===')
+          console.log('响应状态码:', res.statusCode)
+          console.log('响应数据原始:', res.data)
+          console.log('响应数据类型:', typeof res.data)
+          console.log('响应数据长度:', res.data ? res.data.length : 0)
+          console.log('==================')
+          
+          if (res.statusCode === 200) {
+            // 检查响应数据是否为空
+            if (!res.data || res.data.trim() === '') {
+              console.log('服务器返回空响应，但状态码为200，认为上传成功')
+              resolve({
+                success: true,
+                message: '上传成功',
+                avatarUrl: null // 可能需要从其他地方获取新的头像URL
+              })
+              return
+            }
+            
+            try {
+              const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+              resolve(data)
+            } catch (error) {
+              console.error('解析响应数据失败:', error)
+              console.log('尝试直接返回原始响应数据')
+              // 如果解析失败，但状态码是200，仍然认为成功
+              resolve({
+                success: true,
+                message: '上传成功',
+                originalData: res.data
+              })
+            }
+          } else {
+            reject({
+              statusCode: res.statusCode,
+              data: res.data
+            })
+          }
+        },
+        fail: (error) => {
+          console.log('=== 头像上传失败 ===')
+          console.error('上传错误:', error)
+          console.log('==================')
+          reject(error)
+        }
+      })
+    })
   }
 }
 
@@ -215,5 +377,8 @@ export default {
   userAPI,
   testAPI,
   counselorAPI,
-  storageUtils
+  storageUtils,
+  processAvatarUrl,
+  getSmartAvatarUrl,
+  smartNavigate
 }

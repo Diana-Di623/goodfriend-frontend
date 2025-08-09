@@ -30,12 +30,14 @@
     </view>
 
     <!-- 个人资料卡片 -->
-    <view class="profile-card">
+    <view class="profile-card" :key="`profile-${forceUpdateKey}`">
       <view class="profile-header">
         <view class="avatar-section" @click="chooseAvatar">
           <image 
             :src="counselorInfo.avatar || '/static/logo.png'" 
             class="avatar-image"
+            @error="handleAvatarError"
+            @load="handleAvatarLoad"
           />
           <text class="change-text">点击更换</text>
         </view>
@@ -69,7 +71,7 @@
           <text class="section-label">专业统计</text>
           <text class="edit-btn" @click="editStats">编辑</text>
         </view>
-        <view class="stats-grid">
+        <view class="stats-grid" :key="statsForceUpdate">
           <view class="stat-item">
             <text class="stat-number">{{ counselorInfo.stats?.caseHours || 0 }}</text>
             <text class="stat-label">个案时长(小时)</text>
@@ -118,7 +120,7 @@
     </view>
 
     <!-- 咨询设置 -->
-    <view class="info-section">
+    <view class="info-section" :key="`settings-${forceUpdateKey}`">
       <view class="section-header">
         <text class="section-title">咨询设置</text>
         <text class="edit-btn" @click="editConsultationSettings">编辑</text>
@@ -598,11 +600,16 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import API from '../../utils/api.js'
 
 // 进度条相关
 const isPageLoading = ref(false)
 const progressBarWidth = ref(0)
 const loadingText = ref('加载中...')
+
+// 强制更新标志
+const forceUpdateKey = ref(0)
+const statsForceUpdate = ref(0)
 
 // 进度条定时器
 let progressTimer = null
@@ -740,10 +747,91 @@ function showLoadingWithProgress(duration = 500, text = '加载中...') {
 }
 
 // 加载咨询师信息
-function loadCounselorInfo() {
+async function loadCounselorInfo() {
   showLoadingWithProgress(800, '加载个人信息...')
   
-  // 尝试从本地存储加载咨询师申请信息
+  try {
+    // 首先尝试从后端API获取咨询师信息
+    console.log('正在从API加载咨询师信息...')
+    const response = await API.counselorAPI.getConsultantProfile()
+    
+    if (response && response.success !== false) {
+      console.log('API返回的咨询师信息:', response)
+      
+      // 将API返回的数据映射到counselorInfo
+      if (response.data || response.id) {
+        const data = response.data || response
+        
+        // 处理头像URL
+        const rawAvatarUrl = data.avatar || data.avatarUrl || data.photo || data.profilePicture
+        const processedAvatarUrl = rawAvatarUrl ? API.processAvatarUrl(rawAvatarUrl) : counselorInfo.value.avatar
+        
+        counselorInfo.value = {
+          ...counselorInfo.value,
+          realName: data.realName || data.name || counselorInfo.value.realName,
+          title: data.title || counselorInfo.value.title,
+          location: data.location || data.address || counselorInfo.value.location,
+          specialties: data.specialties || data.specialty || counselorInfo.value.specialties,
+          bio: data.bio || data.description || counselorInfo.value.bio,
+          avatar: processedAvatarUrl,
+          phone: data.phone || counselorInfo.value.phone,
+          email: data.email || counselorInfo.value.email,
+          experienceYears: data.experienceYears || data.experience || counselorInfo.value.experienceYears,
+          rating: data.rating || counselorInfo.value.rating,
+          consultationCount: data.consultationCount || counselorInfo.value.consultationCount,
+          certificates: data.certificates || data.certificationList || counselorInfo.value.certificates,
+          educationList: data.educationList || data.education || counselorInfo.value.educationList,
+          experienceList: data.experienceList || data.experience || counselorInfo.value.experienceList,
+          // 🆕 添加价格字段映射
+          hourlyRate: data.pricePerHour || data.hourlyRate || counselorInfo.value.hourlyRate,
+          price: data.pricePerHour || data.hourlyRate || counselorInfo.value.price,
+          // 🆕 添加咨询方式和时间字段映射
+          consultationMethods: data.consultationMethods || counselorInfo.value.consultationMethods,
+          availableTime: data.availability || data.availableTime || counselorInfo.value.availableTime,
+          availability: data.availability || data.availableTime || counselorInfo.value.availability,
+          // 🆕 添加统计数据映射
+          stats: {
+            ...counselorInfo.value.stats,
+            caseHours: data.consultationCount || data.caseHours || counselorInfo.value.stats?.caseHours,
+            experience: data.experienceYears || data.experience || counselorInfo.value.stats?.experience,
+            trainingHours: data.trainingHours || counselorInfo.value.stats?.trainingHours,
+            supervisionHours: data.supervisionHours || counselorInfo.value.stats?.supervisionHours
+          }
+        }
+        
+        console.log('更新后的咨询师信息:', counselorInfo.value)
+        console.log('头像信息检查:')
+        console.log('- API原始头像字段:', {
+          avatar: data.avatar,
+          avatarUrl: data.avatarUrl,
+          photo: data.photo,
+          profilePicture: data.profilePicture
+        })
+        console.log('- 价格字段检查:', {
+          pricePerHour: data.pricePerHour,
+          hourlyRate: data.hourlyRate,
+          最终hourlyRate: counselorInfo.value.hourlyRate,
+          最终price: counselorInfo.value.price
+        })
+        console.log('- 统计数据字段检查:', {
+          consultationCount: data.consultationCount,
+          experienceYears: data.experienceYears,
+          trainingHours: data.trainingHours,
+          supervisionHours: data.supervisionHours,
+          最终stats: counselorInfo.value.stats
+        })
+        console.log('- 原始头像路径:', rawAvatarUrl)
+        console.log('- 处理后的头像URL:', processedAvatarUrl)
+        console.log('- 最终使用的头像URL:', counselorInfo.value.avatar)
+        return
+      }
+    }
+  } catch (error) {
+    console.error('从API加载咨询师信息失败:', error)
+    console.log('尝试从本地存储加载信息...')
+  }
+  
+  // 如果API调用失败，则从本地存储加载咨询师申请信息作为备选
   try {
     const currentUser = uni.getStorageSync('userInfo')
     const userId = currentUser?.phone || currentUser?.id || 'unknown'
@@ -751,6 +839,7 @@ function loadCounselorInfo() {
     
     const application = uni.getStorageSync(userApplicationKey)
     if (application) {
+      console.log('从本地存储加载的信息:', application)
       counselorInfo.value = {
         ...counselorInfo.value,
         realName: application.realName || counselorInfo.value.realName,
@@ -766,8 +855,25 @@ function loadCounselorInfo() {
       }
     }
   } catch (error) {
-    console.error('加载咨询师信息失败:', error)
+    console.error('从本地存储加载咨询师信息失败:', error)
   }
+}
+
+// 头像加载错误处理
+function handleAvatarError(event) {
+  console.log('头像加载失败:', event)
+  console.log('当前头像URL:', counselorInfo.value.avatar)
+  
+  // 如果当前头像不是默认头像，尝试使用默认头像
+  if (counselorInfo.value.avatar !== '/static/logo.png') {
+    console.log('尝试使用默认头像')
+    counselorInfo.value.avatar = '/static/logo.png'
+  }
+}
+
+// 头像加载成功处理
+function handleAvatarLoad(event) {
+  console.log('头像加载成功:', counselorInfo.value.avatar)
 }
 
 // 选择头像
@@ -776,12 +882,104 @@ function chooseAvatar() {
     count: 1,
     sizeType: ['compressed'],
     sourceType: ['camera', 'album'],
-    success: (res) => {
-      counselorInfo.value.avatar = res.tempFilePaths[0]
-      saveCounselorInfo()
+    success: async (res) => {
+      const filePath = res.tempFilePaths[0]
+      console.log('选择的头像文件:', filePath)
+      
+      // 显示加载状态
+      uni.showLoading({
+        title: '上传头像中...'
+      })
+      
+      try {
+        // 调用头像上传API
+        const uploadResponse = await API.counselorAPI.uploadConsultantAvatar(filePath)
+        console.log('头像上传成功:', uploadResponse)
+        
+        // 更新头像显示 - 处理多种响应格式
+        let newAvatarUrl = null
+        
+        console.log('=== 头像上传响应处理 ===')
+        console.log('完整响应对象:', uploadResponse)
+        
+        if (uploadResponse.data && uploadResponse.data.avatarUrl) {
+          newAvatarUrl = uploadResponse.data.avatarUrl
+          console.log('从data.avatarUrl获取:', newAvatarUrl)
+        } else if (uploadResponse.data && uploadResponse.data.avatar) {
+          newAvatarUrl = uploadResponse.data.avatar
+          console.log('从data.avatar获取:', newAvatarUrl)
+        } else if (uploadResponse.avatarUrl) {
+          newAvatarUrl = uploadResponse.avatarUrl
+          console.log('从avatarUrl获取:', newAvatarUrl)
+        } else if (uploadResponse.avatar) {
+          newAvatarUrl = uploadResponse.avatar
+          console.log('从avatar获取:', newAvatarUrl)
+        } else if (uploadResponse.url) {
+          newAvatarUrl = uploadResponse.url
+          console.log('从url获取:', newAvatarUrl)
+        } else if (uploadResponse.data && uploadResponse.data.url) {
+          newAvatarUrl = uploadResponse.data.url
+          console.log('从data.url获取:', newAvatarUrl)
+        }
+        
+        console.log('提取的头像URL:', newAvatarUrl)
+        
+        if (newAvatarUrl) {
+          // 使用API.processAvatarUrl处理返回的头像URL
+          counselorInfo.value.avatar = API.processAvatarUrl(newAvatarUrl)
+          console.log('使用服务器返回的头像URL:', newAvatarUrl)
+          console.log('处理后的头像URL:', counselorInfo.value.avatar)
+        } else {
+          // 如果API没有返回新的URL，但上传成功，暂时使用本地路径
+          counselorInfo.value.avatar = filePath
+          console.log('服务器未返回头像URL，使用本地路径:', filePath)
+        }
+        console.log('===========================')
+        
+        uni.hideLoading()
+        uni.showToast({
+          title: '头像上传成功',
+          icon: 'success'
+        })
+        
+        // 保存更新后的咨询师信息到服务器
+        console.log('头像上传成功，正在保存信息到服务器...')
+        try {
+          await saveCounselorInfo()
+          console.log('咨询师信息已保存到服务器')
+        } catch (saveError) {
+          console.error('保存咨询师信息失败:', saveError)
+          // 即使保存失败，头像上传仍然成功，所以不显示错误
+        }
+        
+      } catch (error) {
+        console.error('头像上传失败:', error)
+        uni.hideLoading()
+        
+        // 显示错误信息
+        let errorMessage = '头像上传失败'
+        if (error.data) {
+          try {
+            const errorData = typeof error.data === 'string' ? JSON.parse(error.data) : error.data
+            errorMessage = errorData.message || errorMessage
+          } catch (e) {
+            // 解析失败，使用默认错误信息
+          }
+        }
+        
+        uni.showToast({
+          title: errorMessage,
+          icon: 'error',
+          duration: 2000
+        })
+      }
     },
     fail: (error) => {
       console.error('选择头像失败:', error)
+      uni.showToast({
+        title: '选择头像失败',
+        icon: 'error'
+      })
     }
   })
 }
@@ -821,11 +1019,20 @@ function saveBio() {
   }
   
   counselorInfo.value.bio = editingBio.value
-  saveCounselorInfo()
-  showBioModal.value = false
-  uni.showToast({
-    title: '保存成功',
-    icon: 'success'
+  
+  // 异步保存并更新UI
+  saveCounselorInfo().then(() => {
+    showBioModal.value = false
+    uni.showToast({
+      title: '保存成功',
+      icon: 'success'
+    })
+  }).catch(error => {
+    console.error('保存失败:', error)
+    uni.showToast({
+      title: '保存失败，请重试',
+      icon: 'error'
+    })
   })
 }
 
@@ -863,11 +1070,19 @@ function saveName() {
   counselorInfo.value.name = editingName.value.trim()
   counselorInfo.value.location = editingLocation.value.trim()
   
-  saveCounselorInfo()
-  showNameModal.value = false
-  uni.showToast({
-    title: '基本信息保存成功',
-    icon: 'success'
+  // 异步保存并更新UI
+  saveCounselorInfo().then(() => {
+    showNameModal.value = false
+    uni.showToast({
+      title: '基本信息保存成功',
+      icon: 'success'
+    })
+  }).catch(error => {
+    console.error('保存失败:', error)
+    uni.showToast({
+      title: '保存失败，请重试',
+      icon: 'error'
+    })
   })
 }
 
@@ -905,7 +1120,14 @@ function saveEducation() {
   // 验证必填字段
   for (let i = 0; i < editingEducation.value.length; i++) {
     const education = editingEducation.value[i]
-    if (!education.degree.trim() || !education.school.trim() || !education.major.trim() || !education.year.trim()) {
+    
+    // 安全的字段检查，避免 undefined 错误
+    const degree = education.degree || ''
+    const school = education.school || ''
+    const major = education.major || ''
+    const year = education.year || ''
+    
+    if (!degree.trim() || !school.trim() || !major.trim() || !year.trim()) {
       uni.showToast({
         title: `教育经历${i + 1}信息不完整`,
         icon: 'none'
@@ -915,11 +1137,20 @@ function saveEducation() {
   }
   
   counselorInfo.value.educationList = editingEducation.value
-  saveCounselorInfo()
-  showEducationModal.value = false
-  uni.showToast({
-    title: '教育背景保存成功',
-    icon: 'success'
+  
+  // 异步保存并更新UI
+  saveCounselorInfo().then(() => {
+    showEducationModal.value = false
+    uni.showToast({
+      title: '教育背景保存成功',
+      icon: 'success'
+    })
+  }).catch(error => {
+    console.error('保存失败:', error)
+    uni.showToast({
+      title: '保存失败，请重试',
+      icon: 'error'
+    })
   })
 }
 
@@ -927,7 +1158,13 @@ function saveExperience() {
   // 验证必填字段
   for (let i = 0; i < editingExperience.value.length; i++) {
     const experience = editingExperience.value[i]
-    if (!experience.company.trim() || !experience.position.trim() || !experience.duration.trim()) {
+    
+    // 安全的字段检查，避免 undefined 错误
+    const company = experience.company || ''
+    const position = experience.position || ''
+    const duration = experience.duration || ''
+    
+    if (!company.trim() || !position.trim() || !duration.trim()) {
       uni.showToast({
         title: `工作经历${i + 1}信息不完整`,
         icon: 'none'
@@ -937,11 +1174,20 @@ function saveExperience() {
   }
   
   counselorInfo.value.experienceList = editingExperience.value
-  saveCounselorInfo()
-  showExperienceModal.value = false
-  uni.showToast({
-    title: '工作经历保存成功',
-    icon: 'success'
+  
+  // 异步保存并更新UI
+  saveCounselorInfo().then(() => {
+    showExperienceModal.value = false
+    uni.showToast({
+      title: '工作经历保存成功',
+      icon: 'success'
+    })
+  }).catch(error => {
+    console.error('保存失败:', error)
+    uni.showToast({
+      title: '保存失败，请重试',
+      icon: 'error'
+    })
   })
 }
 
@@ -949,7 +1195,14 @@ function saveCertificates() {
   // 验证必填字段
   for (let i = 0; i < editingCertificates.value.length; i++) {
     const certificate = editingCertificates.value[i]
-    if (!certificate.name.trim() || !certificate.number.trim() || !certificate.issuer.trim() || !certificate.date.trim()) {
+    
+    // 安全的字段检查，避免 undefined 错误
+    const name = certificate.name || ''
+    const number = certificate.number || ''
+    const issuer = certificate.issuer || ''
+    const date = certificate.date || ''
+    
+    if (!name.trim() || !number.trim() || !issuer.trim() || !date.trim()) {
       uni.showToast({
         title: `证书${i + 1}信息不完整`,
         icon: 'none'
@@ -962,17 +1215,26 @@ function saveCertificates() {
   // 同步更新简化资质信息到用户端
   counselorInfo.value.credentials = editingCertificates.value.map(cert => cert.name)
   
-  saveCounselorInfo()
-  showCertificatesModal.value = false
-  uni.showToast({
-    title: '执业资质保存成功',
-    icon: 'success'
+  // 异步保存并更新UI
+  saveCounselorInfo().then(() => {
+    showCertificatesModal.value = false
+    uni.showToast({
+      title: '执业资质保存成功',
+      icon: 'success'
+    })
+  }).catch(error => {
+    console.error('保存失败:', error)
+    uni.showToast({
+      title: '保存失败，请重试',
+      icon: 'error'
+    })
   })
 }
 
 function saveSettings() {
   // 验证必填字段
-  if (!editingSettings.value.hourlyRate || !editingSettings.value.availableTime?.trim()) {
+  const availableTime = editingSettings.value.availableTime || ''
+  if (!editingSettings.value.hourlyRate || !availableTime.trim()) {
     uni.showToast({
       title: '请填写完整的咨询设置信息',
       icon: 'none'
@@ -991,15 +1253,24 @@ function saveSettings() {
   counselorInfo.value.hourlyRate = editingSettings.value.hourlyRate
   counselorInfo.value.consultationMethods = editingSettings.value.consultationMethods
   counselorInfo.value.availableTime = editingSettings.value.availableTime
+  counselorInfo.value.availability = editingSettings.value.availableTime  // API字段兼容
   
   // 同步价格到用户端显示字段
   counselorInfo.value.price = parseInt(editingSettings.value.hourlyRate) || 0
   
-  saveCounselorInfo()
-  showSettingsModal.value = false
-  uni.showToast({
-    title: '咨询设置保存成功',
-    icon: 'success'
+  // 异步保存并更新UI
+  saveCounselorInfo().then(() => {
+    showSettingsModal.value = false
+    uni.showToast({
+      title: '咨询设置保存成功',
+      icon: 'success'
+    })
+  }).catch(error => {
+    console.error('保存失败:', error)
+    uni.showToast({
+      title: '保存失败，请重试',
+      icon: 'error'
+    })
   })
 }
 
@@ -1099,18 +1370,28 @@ function saveStats() {
   counselorInfo.value.stats = {
     ...counselorInfo.value.stats,
     caseHours: caseHours,
+    experience: experienceYears,  // 确保experience字段也更新
     trainingHours: trainingHours,
     supervisionHours: supervisionHours
   }
   
   // 更新从业年限
   counselorInfo.value.experience = experienceYears
+  counselorInfo.value.experienceYears = experienceYears
   
-  saveCounselorInfo()
-  showStatsModal.value = false
-  uni.showToast({
-    title: '专业统计保存成功',
-    icon: 'success'
+  // 异步保存并更新UI
+  saveCounselorInfo().then(() => {
+    showStatsModal.value = false
+    uni.showToast({
+      title: '专业统计保存成功',
+      icon: 'success'
+    })
+  }).catch(error => {
+    console.error('保存失败:', error)
+    uni.showToast({
+      title: '保存失败，请重试',
+      icon: 'error'
+    })
   })
 }
 
@@ -1197,19 +1478,37 @@ function toggleSpecialty(specialty) {
 
 // 编辑教育背景
 function editEducation() {
-  editingEducation.value = JSON.parse(JSON.stringify(counselorInfo.value.educationList))
+  // 安全地复制教育列表，确保所有字段都有默认值
+  editingEducation.value = counselorInfo.value.educationList.map(education => ({
+    degree: education.degree || '',
+    school: education.school || '',
+    major: education.major || '',
+    year: education.year || education.time || ''
+  }))
   showEducationModal.value = true
 }
 
 // 编辑工作经历
 function editExperience() {
-  editingExperience.value = JSON.parse(JSON.stringify(counselorInfo.value.experienceList))
+  // 安全地复制经历列表，确保所有字段都有默认值
+  editingExperience.value = counselorInfo.value.experienceList.map(experience => ({
+    company: experience.company || '',
+    position: experience.position || '',
+    duration: experience.duration || '',
+    description: experience.description || ''
+  }))
   showExperienceModal.value = true
 }
 
 // 编辑执业资质
 function editCertificates() {
-  editingCertificates.value = JSON.parse(JSON.stringify(counselorInfo.value.certificates))
+  // 安全地复制证书列表，确保所有字段都有默认值
+  editingCertificates.value = counselorInfo.value.certificates.map(certificate => ({
+    name: certificate.name || '',
+    number: certificate.number || '',
+    issuer: certificate.issuer || '',
+    date: certificate.date || ''
+  }))
   showCertificatesModal.value = true
 }
 
@@ -1250,8 +1549,188 @@ function editStats() {
 }
 
 // 保存咨询师信息
-function saveCounselorInfo() {
+async function saveCounselorInfo() {
   try {
+    // 获取当前用户信息
+    const currentUser = uni.getStorageSync('userInfo')
+    if (!currentUser) {
+      throw new Error('用户信息不存在，请重新登录')
+    }
+
+    // 调试：显示当前完整的 counselorInfo 数据
+    console.log('=== 当前完整的 counselorInfo 数据 ===')
+    console.log('realName:', counselorInfo.value.realName)
+    console.log('name:', counselorInfo.value.name)
+    console.log('location:', counselorInfo.value.location)
+    console.log('specialties:', counselorInfo.value.specialties)
+    console.log('bio:', counselorInfo.value.bio)
+    console.log('stats:', counselorInfo.value.stats)
+    console.log('consultationMethods:', counselorInfo.value.consultationMethods)
+    console.log('hourlyRate:', counselorInfo.value.hourlyRate)
+    console.log('完整对象:', JSON.stringify(counselorInfo.value, null, 2))
+    console.log('=====================================')
+
+    // 准备API数据格式 - 确保与标准格式完全匹配
+    const apiData = {
+      name: (counselorInfo.value.realName || counselorInfo.value.name || '').toString(),
+      location: (counselorInfo.value.location || '').toString(),
+      specialty: Array.isArray(counselorInfo.value.specialties) ? counselorInfo.value.specialties : [],
+      experienceYears: parseInt(counselorInfo.value.stats?.experience || counselorInfo.value.experienceYears || counselorInfo.value.experience || '0') || 0,
+      consultationCount: parseInt(counselorInfo.value.stats?.caseHours || counselorInfo.value.consultationCount || '0') || 0,
+      trainingHours: parseInt(counselorInfo.value.stats?.trainingHours || '0') || 0,
+      supervisionHours: parseInt(counselorInfo.value.stats?.supervisionHours || '0') || 0,
+      bio: (counselorInfo.value.bio || '').toString(),
+      consultationMethods: Array.isArray(counselorInfo.value.consultationMethods) ? counselorInfo.value.consultationMethods : [],
+      availability: (counselorInfo.value.availableTime || counselorInfo.value.availability || '').toString(),
+      pricePerHour: parseInt(counselorInfo.value.hourlyRate || counselorInfo.value.price || '0') || 0,
+      educationList: Array.isArray(counselorInfo.value.educationList) 
+        ? counselorInfo.value.educationList.map(edu => ({
+            degree: (edu?.degree || '').toString(),
+            school: (edu?.school || '').toString(),
+            major: (edu?.major || '').toString(),
+            time: (edu?.year || edu?.time || '').toString()
+          })) 
+        : [],
+      experienceList: Array.isArray(counselorInfo.value.experienceList) 
+        ? counselorInfo.value.experienceList.map(exp => ({
+            company: (exp?.company || '').toString(),
+            position: (exp?.position || '').toString(),
+            duration: (exp?.duration || '').toString(),
+            description: (exp?.description || '').toString()
+          })) 
+        : [],
+      certificationList: Array.isArray(counselorInfo.value.certificates) && counselorInfo.value.certificates.length > 0
+        ? counselorInfo.value.certificates.map(cert => ({
+            name: (cert?.name || '').toString(),
+            number: (cert?.number || '').toString(),
+            issuer: (cert?.issuer || '').toString(),
+            date: (cert?.date || '').toString()
+          })) 
+        : []
+    }
+
+    // 数据验证
+    console.log('=== 数据映射对比 ===')
+    console.log('name字段:', {
+      来源: 'counselorInfo.value.realName || counselorInfo.value.name',
+      realName: counselorInfo.value.realName,
+      name: counselorInfo.value.name,
+      最终值: apiData.name
+    })
+    console.log('location字段:', {
+      来源: 'counselorInfo.value.location',
+      原始值: counselorInfo.value.location,
+      最终值: apiData.location
+    })
+    console.log('specialty字段:', {
+      来源: 'counselorInfo.value.specialties',
+      原始值: counselorInfo.value.specialties,
+      是否数组: Array.isArray(counselorInfo.value.specialties),
+      最终值: apiData.specialty
+    })
+    console.log('bio字段:', {
+      来源: 'counselorInfo.value.bio',
+      原始值: counselorInfo.value.bio,
+      最终值: apiData.bio
+    })
+    console.log('pricePerHour字段:', {
+      来源: 'counselorInfo.value.hourlyRate || counselorInfo.value.price',
+      hourlyRate: counselorInfo.value.hourlyRate,
+      price: counselorInfo.value.price,
+      最终值: apiData.pricePerHour
+    })
+    console.log('=======================')
+    
+    console.log('=== 数据验证阶段 ===')
+    console.log('counselorInfo结构:', Object.keys(counselorInfo.value))
+    console.log('certificates字段:', counselorInfo.value.certificates)
+    console.log('educationList字段:', counselorInfo.value.educationList)
+    console.log('experienceList字段:', counselorInfo.value.experienceList)
+    console.log('specialties字段:', counselorInfo.value.specialties)
+    console.log('consultationMethods字段:', counselorInfo.value.consultationMethods)
+
+    // 验证必填字段
+    if (!apiData.name) {
+      throw new Error('咨询师姓名不能为空')
+    }
+
+    // 打印实际发送的数据用于调试
+    console.log('=== 发送到API的数据 ===')
+    console.log(JSON.stringify(apiData, null, 2))
+    console.log('数据大小:', JSON.stringify(apiData).length, '字符')
+
+    // 调用API更新咨询师信息
+    console.log('开始调用API...')
+    const response = await API.counselorAPI.updateConsultant(apiData)
+
+    console.log('咨询师信息已同步到服务器:', response)
+
+    // 🆕 保存成功后重新从API加载最新数据
+    console.log('=== 重新加载最新数据 ===')
+    try {
+      const latestResponse = await API.counselorAPI.getConsultantProfile()
+      if (latestResponse && (latestResponse.data || latestResponse.id)) {
+        const latestData = latestResponse.data || latestResponse
+        
+        // 处理最新的头像URL
+        const rawAvatarUrl = latestData.avatar || latestData.avatarUrl || latestData.photo || latestData.profilePicture
+        const processedAvatarUrl = rawAvatarUrl ? API.processAvatarUrl(rawAvatarUrl) : counselorInfo.value.avatar
+        
+        // 更新所有字段为最新数据
+        counselorInfo.value = {
+          ...counselorInfo.value,
+          realName: latestData.realName || latestData.name || counselorInfo.value.realName,
+          name: latestData.realName || latestData.name || counselorInfo.value.name,
+          title: latestData.title || counselorInfo.value.title,
+          location: latestData.location || latestData.address || counselorInfo.value.location,
+          specialties: latestData.specialties || latestData.specialty || counselorInfo.value.specialties,
+          bio: latestData.bio || latestData.description || counselorInfo.value.bio,
+          avatar: processedAvatarUrl,
+          phone: latestData.phone || counselorInfo.value.phone,
+          email: latestData.email || counselorInfo.value.email,
+          experienceYears: latestData.experienceYears || latestData.experience || counselorInfo.value.experienceYears,
+          rating: latestData.rating || counselorInfo.value.rating,
+          consultationCount: latestData.consultationCount || counselorInfo.value.consultationCount,
+          certificates: latestData.certificates || latestData.certificationList || counselorInfo.value.certificates,
+          educationList: latestData.educationList || latestData.education || counselorInfo.value.educationList,
+          experienceList: latestData.experienceList || latestData.experience || counselorInfo.value.experienceList,
+          consultationMethods: latestData.consultationMethods || counselorInfo.value.consultationMethods,
+          availableTime: latestData.availability || latestData.availableTime || counselorInfo.value.availableTime,
+          hourlyRate: latestData.pricePerHour || latestData.hourlyRate || counselorInfo.value.hourlyRate,
+          price: latestData.pricePerHour || latestData.hourlyRate || counselorInfo.value.price,
+          // 更新统计数据
+          stats: {
+            ...counselorInfo.value.stats,
+            caseHours: latestData.consultationCount || counselorInfo.value.stats?.caseHours,
+            experience: latestData.experienceYears || counselorInfo.value.stats?.experience,
+            trainingHours: latestData.trainingHours || counselorInfo.value.stats?.trainingHours,
+            supervisionHours: latestData.supervisionHours || counselorInfo.value.stats?.supervisionHours
+          }
+        }
+        
+        console.log('前端数据已更新为最新版本:', counselorInfo.value)
+        console.log('=== 重新加载后的价格检查 ===')
+        console.log('- API返回的价格字段:', {
+          pricePerHour: latestData.pricePerHour,
+          hourlyRate: latestData.hourlyRate
+        })
+        console.log('- 更新后的前端价格:', {
+          hourlyRate: counselorInfo.value.hourlyRate,
+          price: counselorInfo.value.price
+        })
+        console.log('===========================')
+        
+        // 🆕 强制触发界面重新渲染
+        forceUpdateKey.value++
+        statsForceUpdate.value++
+        console.log('强制更新界面，key:', forceUpdateKey.value, 'stats:', statsForceUpdate.value)
+      }
+    } catch (reloadError) {
+      console.error('重新加载最新数据失败:', reloadError)
+      // 即使重新加载失败，保存操作仍然成功
+    }
+    console.log('==============================')
+
     // 确保数据同步
     const syncedInfo = {
       ...counselorInfo.value,
@@ -1308,13 +1787,38 @@ function saveCounselorInfo() {
     console.log('咨询师信息已同步到用户端数据库')
   } catch (error) {
     console.error('保存咨询师信息失败:', error)
+    
+    // 详细错误日志
+    if (error.response) {
+      console.error('API响应错误:', error.response)
+      console.error('状态码:', error.response.status)
+      console.error('错误数据:', error.response.data)
+    } else if (error.request) {
+      console.error('请求错误:', error.request)
+    } else {
+      console.error('其他错误:', error.message)
+    }
+    
+    // 显示错误提示
+    const errorMessage = error.response?.data?.message || error.message || '保存失败，请重试'
+    uni.showToast({
+      title: errorMessage,
+      icon: 'none',
+      duration: 3000
+    })
   }
 }
 
 // 跳转到预约管理
 function goAppointments() {
-  uni.navigateTo({
+  API.smartNavigate({
     url: '/pages/counselor/appointments'
+  }).catch(error => {
+    console.error('页面跳转失败:', error)
+    uni.showToast({
+      title: '页面跳转失败',
+      icon: 'error'
+    })
   })
 }
 </script>
