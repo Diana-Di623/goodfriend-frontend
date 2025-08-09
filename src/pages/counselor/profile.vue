@@ -789,14 +789,17 @@ async function loadCounselorInfo() {
           consultationMethods: data.consultationMethods || counselorInfo.value.consultationMethods,
           availableTime: data.availability || data.availableTime || counselorInfo.value.availableTime,
           availability: data.availability || data.availableTime || counselorInfo.value.availability,
-          // 🆕 添加统计数据映射
+          // 🆕 添加统计数据映射 - 正确处理0值
           stats: {
             ...counselorInfo.value.stats,
-            caseHours: data.consultationCount || data.caseHours || counselorInfo.value.stats?.caseHours,
-            experience: data.experienceYears || data.experience || counselorInfo.value.stats?.experience,
-            trainingHours: data.trainingHours || counselorInfo.value.stats?.trainingHours,
-            supervisionHours: data.supervisionHours || counselorInfo.value.stats?.supervisionHours
-          }
+            caseHours: typeof data.consultationCount === 'number' ? data.consultationCount : (typeof data.caseHours === 'number' ? data.caseHours : (counselorInfo.value.stats?.caseHours || 0)),
+            experience: typeof data.experienceYears === 'number' ? data.experienceYears : (typeof data.experience === 'number' ? data.experience : (counselorInfo.value.stats?.experience || 0)),
+            trainingHours: typeof data.trainingHours === 'number' ? data.trainingHours : (counselorInfo.value.stats?.trainingHours || 0),
+            supervisionHours: typeof data.supervisionHours === 'number' ? data.supervisionHours : (counselorInfo.value.stats?.supervisionHours || 0)
+          },
+          // 确保顶级字段也正确映射0值
+          experience: typeof data.experienceYears === 'number' ? data.experienceYears : (typeof data.experience === 'number' ? data.experience : (counselorInfo.value.experience || 0)),
+          consultationCount: typeof data.consultationCount === 'number' ? data.consultationCount : (typeof data.caseHours === 'number' ? data.caseHours : (counselorInfo.value.consultationCount || 0))
         }
         
         console.log('更新后的咨询师信息:', counselorInfo.value)
@@ -1540,10 +1543,10 @@ function editSpecialties() {
 // 编辑专业统计
 function editStats() {
   editingStats.value = {
-    caseHours: counselorInfo.value.stats?.caseHours || 0,
-    experienceYears: counselorInfo.value.experience || 0,
-    trainingHours: counselorInfo.value.stats?.trainingHours || 0,
-    supervisionHours: counselorInfo.value.stats?.supervisionHours || 0
+    caseHours: typeof counselorInfo.value.stats?.caseHours === 'number' ? counselorInfo.value.stats.caseHours : 0,
+    experienceYears: typeof counselorInfo.value.experience === 'number' ? counselorInfo.value.experience : 0,
+    trainingHours: typeof counselorInfo.value.stats?.trainingHours === 'number' ? counselorInfo.value.stats.trainingHours : 0,
+    supervisionHours: typeof counselorInfo.value.stats?.supervisionHours === 'number' ? counselorInfo.value.stats.supervisionHours : 0
   }
   showStatsModal.value = true
 }
@@ -1570,19 +1573,23 @@ async function saveCounselorInfo() {
     console.log('完整对象:', JSON.stringify(counselorInfo.value, null, 2))
     console.log('=====================================')
 
-    // 准备API数据格式 - 确保与标准格式完全匹配
+    // 准备API数据格式 - 确保与标准格式完全匹配，正确处理0值
     const apiData = {
       name: (counselorInfo.value.realName || counselorInfo.value.name || '').toString(),
       location: (counselorInfo.value.location || '').toString(),
       specialty: Array.isArray(counselorInfo.value.specialties) ? counselorInfo.value.specialties : [],
-      experienceYears: parseInt(counselorInfo.value.stats?.experience || counselorInfo.value.experienceYears || counselorInfo.value.experience || '0') || 0,
-      consultationCount: parseInt(counselorInfo.value.stats?.caseHours || counselorInfo.value.consultationCount || '0') || 0,
-      trainingHours: parseInt(counselorInfo.value.stats?.trainingHours || '0') || 0,
-      supervisionHours: parseInt(counselorInfo.value.stats?.supervisionHours || '0') || 0,
+      experienceYears: typeof counselorInfo.value.stats?.experience === 'number' ? counselorInfo.value.stats.experience : 
+                      (typeof counselorInfo.value.experienceYears === 'number' ? counselorInfo.value.experienceYears : 
+                      (typeof counselorInfo.value.experience === 'number' ? counselorInfo.value.experience : 0)),
+      consultationCount: typeof counselorInfo.value.stats?.caseHours === 'number' ? counselorInfo.value.stats.caseHours : 
+                        (typeof counselorInfo.value.consultationCount === 'number' ? counselorInfo.value.consultationCount : 0),
+      trainingHours: typeof counselorInfo.value.stats?.trainingHours === 'number' ? counselorInfo.value.stats.trainingHours : 0,
+      supervisionHours: typeof counselorInfo.value.stats?.supervisionHours === 'number' ? counselorInfo.value.stats.supervisionHours : 0,
       bio: (counselorInfo.value.bio || '').toString(),
       consultationMethods: Array.isArray(counselorInfo.value.consultationMethods) ? counselorInfo.value.consultationMethods : [],
       availability: (counselorInfo.value.availableTime || counselorInfo.value.availability || '').toString(),
-      pricePerHour: parseInt(counselorInfo.value.hourlyRate || counselorInfo.value.price || '0') || 0,
+      pricePerHour: typeof counselorInfo.value.hourlyRate === 'number' ? counselorInfo.value.hourlyRate : 
+                   (typeof counselorInfo.value.price === 'number' ? counselorInfo.value.price : 0),
       educationList: Array.isArray(counselorInfo.value.educationList) 
         ? counselorInfo.value.educationList.map(edu => ({
             degree: (edu?.degree || '').toString(),
@@ -1638,6 +1645,31 @@ async function saveCounselorInfo() {
       hourlyRate: counselorInfo.value.hourlyRate,
       price: counselorInfo.value.price,
       最终值: apiData.pricePerHour
+    })
+    console.log('统计数据字段映射:', {
+      experienceYears: {
+        来源: 'stats.experience || experienceYears || experience',
+        'stats.experience': counselorInfo.value.stats?.experience,
+        experienceYears: counselorInfo.value.experienceYears,
+        experience: counselorInfo.value.experience,
+        最终值: apiData.experienceYears
+      },
+      consultationCount: {
+        来源: 'stats.caseHours || consultationCount',
+        'stats.caseHours': counselorInfo.value.stats?.caseHours,
+        consultationCount: counselorInfo.value.consultationCount,
+        最终值: apiData.consultationCount
+      },
+      trainingHours: {
+        来源: 'stats.trainingHours',
+        原始值: counselorInfo.value.stats?.trainingHours,
+        最终值: apiData.trainingHours
+      },
+      supervisionHours: {
+        来源: 'stats.supervisionHours',
+        原始值: counselorInfo.value.stats?.supervisionHours,
+        最终值: apiData.supervisionHours
+      }
     })
     console.log('=======================')
     
@@ -1698,14 +1730,17 @@ async function saveCounselorInfo() {
           availableTime: latestData.availability || latestData.availableTime || counselorInfo.value.availableTime,
           hourlyRate: latestData.pricePerHour || latestData.hourlyRate || counselorInfo.value.hourlyRate,
           price: latestData.pricePerHour || latestData.hourlyRate || counselorInfo.value.price,
-          // 更新统计数据
+          // 更新统计数据 - 确保正确映射所有字段
           stats: {
             ...counselorInfo.value.stats,
-            caseHours: latestData.consultationCount || counselorInfo.value.stats?.caseHours,
-            experience: latestData.experienceYears || counselorInfo.value.stats?.experience,
-            trainingHours: latestData.trainingHours || counselorInfo.value.stats?.trainingHours,
-            supervisionHours: latestData.supervisionHours || counselorInfo.value.stats?.supervisionHours
-          }
+            caseHours: latestData.consultationCount || latestData.caseHours || counselorInfo.value.stats?.caseHours || 0,
+            experience: latestData.experienceYears || latestData.experience || counselorInfo.value.stats?.experience || 0,
+            trainingHours: latestData.trainingHours || counselorInfo.value.stats?.trainingHours || 0,
+            supervisionHours: latestData.supervisionHours || counselorInfo.value.stats?.supervisionHours || 0
+          },
+          // 确保顶级字段也正确映射
+          experience: latestData.experienceYears || latestData.experience || counselorInfo.value.experience || 0,
+          consultationCount: latestData.consultationCount || latestData.caseHours || counselorInfo.value.consultationCount || 0
         }
         
         console.log('前端数据已更新为最新版本:', counselorInfo.value)
