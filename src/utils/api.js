@@ -1,6 +1,31 @@
 // API 工具函数
 const BASE_URL = 'http://127.0.0.1:8080'
 
+// 头像文件名提取函数：从完整路径中提取纯文件名（不带路径和扩展名）
+function extractAvatarFileName(avatarPath) {
+  if (!avatarPath) return ''
+  
+  console.log('=== 提取头像文件名 ===')
+  console.log('原始路径:', avatarPath)
+  
+  // 移除路径前缀（如 "user/avatars/"、"consultant/avatars/"等）
+  let fileName = avatarPath.replace(/^.*\//, '')
+  console.log('移除路径后:', fileName)
+  
+  // 移除扩展名（如 .jpg、.png、.jpeg等）
+  let pureFileName = fileName.replace(/\.(jpg|png|jpeg|gif|webp)$/i, '')
+  console.log('移除扩展名后:', pureFileName)
+  
+  // 如果结果为空或无效，返回原始文件名
+  if (!pureFileName || pureFileName === fileName) {
+    // 可能没有扩展名，直接返回文件名
+    pureFileName = fileName
+  }
+  
+  console.log('最终文件名:', pureFileName)
+  return pureFileName
+}
+
 // 辅助函数：处理头像URL
 // 添加智能头像URL处理函数
 function getSmartAvatarUrl(avatarPath) {
@@ -206,6 +231,13 @@ export const userAPI = {
       method: 'PUT',
       data: userInfo
     })
+  },
+  
+  // 获取可用头像列表
+  getAvailableAvatars() {
+    return request('/api/user/avatars', {
+      method: 'GET'
+    })
   }
 }
 
@@ -380,5 +412,6 @@ export default {
   storageUtils,
   processAvatarUrl,
   getSmartAvatarUrl,
-  smartNavigate
+  smartNavigate,
+  extractAvatarFileName
 }

@@ -44,12 +44,16 @@
         <view class="basic-info">
           <view class="name-section">
             <text class="counselor-name">{{ counselorInfo.realName || '咨询师姓名' }}</text>
-            <text class="edit-btn" @click="editName">编辑信息</text>
+            <text class="edit-btn" @click="editPublicSettings">编辑信息</text>
           </view>
           <text class="counselor-title">{{ counselorInfo.title || '心理咨询师' }}</text>
           <view class="location-info">
             <text class="location-icon">📍</text>
             <text class="location-text">{{ counselorInfo.location || '所在地区' }}</text>
+          </view>
+          <view class="gender-info">
+            <text class="gender-icon">👤</text>
+            <text class="gender-text">{{ getGenderDisplay(counselorInfo.gender) }}</text>
           </view>
           <view class="rating-info">
             <view class="star-rating">
@@ -516,49 +520,31 @@
         </view>
         <view class="modal-body">
           <view class="setting-group">
-            <text class="setting-label">所在地区</text>
-            <input v-model="editingPublicSettings.location" placeholder="请输入所在地区（如：北京·朝阳）" class="edit-input" />
+            <text class="setting-label">姓名</text>
+            <input v-model="editingPublicSettings.name" placeholder="请输入真实姓名" class="edit-input" />
           </view>
           <view class="setting-group">
-            <text class="setting-label">咨询师级别</text>
-            <view class="method-options">
-              <view 
-                v-for="level in ['助理咨询师', '咨询师', '资深咨询师', '专家咨询师']"
-                :key="level"
-                class="method-option"
-                :class="{ active: editingPublicSettings.level === level }"
-                @click="editingPublicSettings.level = level"
-              >
-                <text class="method-text">{{ level }}</text>
-              </view>
-            </view>
+            <text class="setting-label">所在地区</text>
+            <input v-model="editingPublicSettings.location" placeholder="请输入所在地区（如：北京·朝阳）" class="edit-input" />
           </view>
           <view class="setting-group">
             <text class="setting-label">性别</text>
             <view class="method-options">
               <view 
-                v-for="gender in ['男', '女']"
-                :key="gender"
+                v-for="genderOption in genderOptions"
+                :key="genderOption.value"
                 class="method-option"
-                :class="{ active: editingPublicSettings.gender === gender }"
-                @click="editingPublicSettings.gender = gender"
+                :class="{ active: editingPublicSettings.gender === genderOption.value }"
+                @click="editingPublicSettings.gender = genderOption.value"
               >
-                <text class="method-text">{{ gender }}</text>
+                <text class="method-text">{{ genderOption.label }}</text>
               </view>
             </view>
           </view>
-          <view class="setting-group">
-            <text class="setting-label">个案时长（小时）</text>
-            <input v-model="editingPublicSettings.caseHours" type="number" placeholder="请输入个案时长" class="edit-input" />
-          </view>
-          <view class="setting-group">
-            <text class="setting-label">受训时长（小时）</text>
-            <input v-model="editingPublicSettings.trainingHours" type="number" placeholder="请输入受训时长" class="edit-input" />
-          </view>
-          <view class="setting-group">
-            <text class="setting-label">督导时长（小时）</text>
-            <input v-model="editingPublicSettings.supervisionHours" type="number" placeholder="请输入督导时长" class="edit-input" />
-          </view>
+        </view>
+        <view class="modal-footer">
+          <button class="cancel-btn" @click="closePublicModal">取消</button>
+          <button class="save-btn" @click="savePublicSettings">保存</button>
         </view>
       </view>
     </view>
@@ -611,6 +597,13 @@ const loadingText = ref('加载中...')
 const forceUpdateKey = ref(0)
 const statsForceUpdate = ref(0)
 
+// 性别选项定义
+const genderOptions = ref([
+  { value: 'UNKNOWN', label: '未设置' },
+  { value: 'FEMALE', label: '女' },
+  { value: 'MALE', label: '男' }
+])
+
 // 进度条定时器
 let progressTimer = null
 
@@ -628,6 +621,7 @@ const showCertificatesModal = ref(false)
 const showSettingsModal = ref(false)
 const showSpecialtiesModal = ref(false)
 const showStatsModal = ref(false)
+const showPublicModal = ref(false)
 
 // 编辑数据
 const editingEducation = ref([])
@@ -637,6 +631,7 @@ const editingSettings = ref({})
 const editingSpecialties = ref([])
 const editingCustomSpecialties = ref([])
 const editingStats = ref({})
+const editingPublicSettings = ref({})
 
 // 可选择的擅长领域
 const availableSpecialties = ref([
@@ -658,7 +653,7 @@ const counselorInfo = ref({
   price: 300, // 咨询费用，与 hourlyRate 保持一致
   location: '北京·朝阳', // 地区信息
   level: '资深咨询师', // 咨询师级别
-  gender: '女', // 性别
+  gender: 'FEMALE', // 性别 - 使用后端期望的格式
   
   // 专业信息
   specialties: ['焦虑抑郁', '情感关系', '职场压力'],
@@ -746,6 +741,16 @@ function showLoadingWithProgress(duration = 500, text = '加载中...') {
   }, 30)
 }
 
+// 辅助函数：获取性别显示文本
+function getGenderDisplay(gender) {
+  const genderMap = {
+    'MALE': '男',
+    'FEMALE': '女',
+    'UNKNOWN': '未设置'
+  }
+  return genderMap[gender] || '未设置'
+}
+
 // 加载咨询师信息
 async function loadCounselorInfo() {
   showLoadingWithProgress(800, '加载个人信息...')
@@ -779,6 +784,7 @@ async function loadCounselorInfo() {
           experienceYears: data.experienceYears || data.experience || counselorInfo.value.experienceYears,
           rating: data.rating || counselorInfo.value.rating,
           consultationCount: data.consultationCount || counselorInfo.value.consultationCount,
+          gender: data.gender || counselorInfo.value.gender || 'UNKNOWN', // 添加性别字段映射
           certificates: data.certificates || data.certificationList || counselorInfo.value.certificates,
           educationList: data.educationList || data.education || counselorInfo.value.educationList,
           experienceList: data.experienceList || data.experience || counselorInfo.value.experienceList,
@@ -1000,6 +1006,16 @@ function editName() {
   showNameModal.value = true
 }
 
+// 编辑公开展示设置
+function editPublicSettings() {
+  editingPublicSettings.value = {
+    name: counselorInfo.value.realName || counselorInfo.value.name || '',
+    location: counselorInfo.value.location || '',
+    gender: counselorInfo.value.gender || 'UNKNOWN'
+  }
+  showPublicModal.value = true
+}
+
 // 关闭简介编辑弹窗
 function closeBioModal() {
   showBioModal.value = false
@@ -1033,7 +1049,7 @@ function saveBio() {
   }).catch(error => {
     console.error('保存失败:', error)
     uni.showToast({
-      title: '保存失败，请重试',
+      title: '保存失败',
       icon: 'error'
     })
   })
@@ -1077,13 +1093,13 @@ function saveName() {
   saveCounselorInfo().then(() => {
     showNameModal.value = false
     uni.showToast({
-      title: '基本信息保存成功',
+      title: '保存成功',
       icon: 'success'
     })
   }).catch(error => {
     console.error('保存失败:', error)
     uni.showToast({
-      title: '保存失败，请重试',
+      title: '保存失败',
       icon: 'error'
     })
   })
@@ -1145,13 +1161,13 @@ function saveEducation() {
   saveCounselorInfo().then(() => {
     showEducationModal.value = false
     uni.showToast({
-      title: '教育背景保存成功',
+      title: '保存成功',
       icon: 'success'
     })
   }).catch(error => {
     console.error('保存失败:', error)
     uni.showToast({
-      title: '保存失败，请重试',
+      title: '保存失败',
       icon: 'error'
     })
   })
@@ -1182,13 +1198,13 @@ function saveExperience() {
   saveCounselorInfo().then(() => {
     showExperienceModal.value = false
     uni.showToast({
-      title: '工作经历保存成功',
+      title: '保存成功',
       icon: 'success'
     })
   }).catch(error => {
     console.error('保存失败:', error)
     uni.showToast({
-      title: '保存失败，请重试',
+      title: '保存失败',
       icon: 'error'
     })
   })
@@ -1222,13 +1238,13 @@ function saveCertificates() {
   saveCounselorInfo().then(() => {
     showCertificatesModal.value = false
     uni.showToast({
-      title: '执业资质保存成功',
+      title: '保存成功',
       icon: 'success'
     })
   }).catch(error => {
     console.error('保存失败:', error)
     uni.showToast({
-      title: '保存失败，请重试',
+      title: '保存失败',
       icon: 'error'
     })
   })
@@ -1265,13 +1281,13 @@ function saveSettings() {
   saveCounselorInfo().then(() => {
     showSettingsModal.value = false
     uni.showToast({
-      title: '咨询设置保存成功',
+      title: '保存成功',
       icon: 'success'
     })
   }).catch(error => {
     console.error('保存失败:', error)
     uni.showToast({
-      title: '保存失败，请重试',
+      title: '保存失败',
       icon: 'error'
     })
   })
@@ -1296,24 +1312,24 @@ function saveSpecialties() {
   saveCounselorInfo()
   showSpecialtiesModal.value = false
   uni.showToast({
-    title: '擅长领域保存成功',
+    title: '保存成功',
     icon: 'success'
   })
 }
 
 function savePublicSettings() {
   // 验证必填字段
-  if (!editingPublicSettings.value.location?.trim()) {
+  if (!editingPublicSettings.value.name?.trim()) {
     uni.showToast({
-      title: '请填写所在地区',
+      title: '请填写姓名',
       icon: 'none'
     })
     return
   }
   
-  if (!editingPublicSettings.value.level) {
+  if (!editingPublicSettings.value.location?.trim()) {
     uni.showToast({
-      title: '请选择咨询师级别',
+      title: '请填写所在地区',
       icon: 'none'
     })
     return
@@ -1327,30 +1343,36 @@ function savePublicSettings() {
     return
   }
   
-  // 更新咨询师信息
+  // 更新咨询师基本信息
+  console.log('=== 保存公开设置 ===')
+  console.log('编辑前性别:', counselorInfo.value.gender)
+  console.log('表单中性别:', editingPublicSettings.value.gender)
+  
+  counselorInfo.value.realName = editingPublicSettings.value.name.trim()
+  counselorInfo.value.name = editingPublicSettings.value.name.trim()
   counselorInfo.value.location = editingPublicSettings.value.location.trim()
-  counselorInfo.value.level = editingPublicSettings.value.level
   counselorInfo.value.gender = editingPublicSettings.value.gender
-  counselorInfo.value.stats = {
-    ...counselorInfo.value.stats,
-    caseHours: parseInt(editingPublicSettings.value.caseHours) || 0,
-    trainingHours: parseInt(editingPublicSettings.value.trainingHours) || 0,
-    supervisionHours: parseInt(editingPublicSettings.value.supervisionHours) || 0,
-    experience: parseInt(counselorInfo.value.experience) || 0
-  }
   
-  // 同步更新相关字段
-  counselorInfo.value.name = counselorInfo.value.realName
-  counselorInfo.value.price = parseInt(counselorInfo.value.hourlyRate) || 0
+  console.log('更新后性别:', counselorInfo.value.gender)
+  console.log('性别显示文本:', getGenderDisplay(counselorInfo.value.gender))
+  console.log('==================')
   
-  // 更新简化资质信息
-  counselorInfo.value.credentials = counselorInfo.value.certificates.map(cert => cert.name)
-  
-  saveCounselorInfo()
-  showPublicModal.value = false
-  uni.showToast({
-    title: '公开展示设置保存成功',
-    icon: 'success'
+  // 异步保存并更新UI
+  saveCounselorInfo().then(() => {
+    showPublicModal.value = false
+    // 强制更新UI显示
+    forceUpdateKey.value++
+    console.log('基本信息保存成功，强制更新UI:', forceUpdateKey.value)
+    uni.showToast({
+      title: '基本信息保存成功',
+      icon: 'success'
+    })
+  }).catch(error => {
+    console.error('保存失败:', error)
+    uni.showToast({
+      title: '保存失败，请重试',
+      icon: 'error'
+    })
   })
 }
 
@@ -1386,13 +1408,13 @@ function saveStats() {
   saveCounselorInfo().then(() => {
     showStatsModal.value = false
     uni.showToast({
-      title: '专业统计保存成功',
+      title: '保存成功',
       icon: 'success'
     })
   }).catch(error => {
     console.error('保存失败:', error)
     uni.showToast({
-      title: '保存失败，请重试',
+      title: '保存失败',
       icon: 'error'
     })
   })
@@ -1576,6 +1598,7 @@ async function saveCounselorInfo() {
     // 准备API数据格式 - 确保与标准格式完全匹配，正确处理0值
     const apiData = {
       name: (counselorInfo.value.realName || counselorInfo.value.name || '').toString(),
+      gender: counselorInfo.value.gender || 'UNKNOWN',
       location: (counselorInfo.value.location || '').toString(),
       specialty: Array.isArray(counselorInfo.value.specialties) ? counselorInfo.value.specialties : [],
       experienceYears: typeof counselorInfo.value.stats?.experience === 'number' ? counselorInfo.value.stats.experience : 
@@ -1590,6 +1613,7 @@ async function saveCounselorInfo() {
       availability: (counselorInfo.value.availableTime || counselorInfo.value.availability || '').toString(),
       pricePerHour: typeof counselorInfo.value.hourlyRate === 'number' ? counselorInfo.value.hourlyRate : 
                    (typeof counselorInfo.value.price === 'number' ? counselorInfo.value.price : 0),
+      gender: counselorInfo.value.gender || 'UNKNOWN', // 添加性别字段
       educationList: Array.isArray(counselorInfo.value.educationList) 
         ? counselorInfo.value.educationList.map(edu => ({
             degree: (edu?.degree || '').toString(),
@@ -1645,6 +1669,13 @@ async function saveCounselorInfo() {
       hourlyRate: counselorInfo.value.hourlyRate,
       price: counselorInfo.value.price,
       最终值: apiData.pricePerHour
+    })
+    console.log('性别字段映射:', {
+      来源: 'counselorInfo.value.gender',
+      原始值: counselorInfo.value.gender,
+      类型: typeof counselorInfo.value.gender,
+      最终值: apiData.gender,
+      有效选项: ['UNKNOWN', 'FEMALE', 'MALE']
     })
     console.log('统计数据字段映射:', {
       experienceYears: {
@@ -1730,6 +1761,7 @@ async function saveCounselorInfo() {
           availableTime: latestData.availability || latestData.availableTime || counselorInfo.value.availableTime,
           hourlyRate: latestData.pricePerHour || latestData.hourlyRate || counselorInfo.value.hourlyRate,
           price: latestData.pricePerHour || latestData.hourlyRate || counselorInfo.value.price,
+          gender: latestData.gender || counselorInfo.value.gender || 'UNKNOWN', // 添加性别字段映射
           // 更新统计数据 - 确保正确映射所有字段
           stats: {
             ...counselorInfo.value.stats,
@@ -1976,6 +2008,23 @@ function goAppointments() {
 }
 
 .location-text {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.gender-info {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-bottom: 16rpx;
+}
+
+.gender-icon {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.gender-text {
   font-size: 24rpx;
   color: #666;
 }

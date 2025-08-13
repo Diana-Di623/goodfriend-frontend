@@ -319,6 +319,67 @@
         </view>
       </view>
     </view>
+
+    <!-- 头像选择弹窗 -->
+    <view v-if="showAvatarModal" class="avatar-modal">
+      <view class="modal-overlay" @click="closeAvatarModal"></view>
+      <view class="modal-content avatar-modal-content">
+        <view class="modal-header">
+          <text class="modal-title">选择头像</text>
+          <view class="close-btn" @click="closeAvatarModal">✕</view>
+        </view>
+        
+        <scroll-view scroll-y class="modal-body" enhanced="true" show-scrollbar="true">
+          <view class="avatar-options">
+            <view class="avatar-option-section">
+              <text class="section-title">请选择头像 (共{{ availableAvatars.length }}个)</text>
+              <view class="avatar-grid" v-if="availableAvatars.length > 0">
+                <view 
+                  v-for="avatar in availableAvatars"
+                  :key="avatar.id"
+                  class="avatar-option"
+                  :class="{ active: selectedAvatarUrl === avatar.url }"
+                  @click="selectAvatar(avatar.url)"
+                >
+                  <image 
+                    :src="avatar.url" 
+                    class="avatar-preview"
+                    mode="aspectFill"
+                    @error="(e) => onAvatarLoadError(e, avatar)"
+                    @load="onAvatarLoad"
+                    show-loading
+                  />
+                  <view v-if="selectedAvatarUrl === avatar.url" class="avatar-check">
+                    <text class="check-icon">✓</text>
+                  </view>
+                </view>
+              </view>
+              
+              <view v-else class="loading-avatars">
+                <view class="loading-spinner-small">
+                  <view class="dot"></view>
+                  <view class="dot"></view>
+                  <view class="dot"></view>
+                </view>
+                <text>正在加载头像选项...</text>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+        
+        <view class="modal-footer">
+          <button class="cancel-btn" @click="closeAvatarModal">取消</button>
+          <button 
+            class="submit-btn" 
+            @click="confirmAvatarSelection" 
+            :disabled="!selectedAvatarUrl"
+            :class="{ disabled: !selectedAvatarUrl }"
+          >
+            确认选择
+          </button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -326,6 +387,7 @@
 import { ref, onMounted } from 'vue'
 import { GENDER_OPTIONS, REGION_OPTIONS, BIRTHDAY_CONFIG, isValidGender, isValidBirthday, calculateAge, getGenderLabel } from '@/utils/constants.js'
 import { userAPI, counselorAPI } from '@/utils/api.js'
+import apiUtils from '@/utils/api.js'
 
 // 未读消息数量
 const unreadMessageCount = ref(15)
@@ -360,8 +422,14 @@ const userInfo = ref({
   location: '', // 所在地区
   customLocation: '', // 自定义地区（当选择"其他"时）
   phone: '',
-  hobbies: ''
+  hobbies: '',
+  selectedAvatarFile: '' // 保存选中的头像文件名，用于后端提交
 })
+
+// 头像选择相关
+const showAvatarModal = ref(false)
+const availableAvatars = ref([])
+const selectedAvatarUrl = ref('')
 
 // 申请咨询师相关
 const showCounselorModal = ref(false)
@@ -648,18 +716,243 @@ function goTestResults() {
 }
 
 // 选择头像
-function chooseAvatar() {
-  uni.chooseImage({
-    count: 1,
-    sizeType: ['compressed'],
-    sourceType: ['camera', 'album'],
-    success: (res) => {
-      userInfo.value.avatar = res.tempFilePaths[0]
-    },
-    fail: (error) => {
-      console.error('选择头像失败:', error)
+async function chooseAvatar() {
+  try {
+    showAvatarModal.value = true
+    selectedAvatarUrl.value = userInfo.value.avatar || ''
+    
+    // 每次都重新加载可用头像列表
+    console.log('开始加载头像列表...')
+    await loadAvailableAvatars()
+  } catch (error) {
+    console.error('打开头像选择失败:', error)
+    uni.showToast({
+      title: '加载头像失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 加载可用头像列表
+async function loadAvailableAvatars() {
+  try {
+    console.log('开始加载可用头像列表...')
+    const response = await userAPI.getAvailableAvatars()
+    
+    console.log('头像API响应:', response)
+    
+    // 根据实际API响应格式处理数据
+    let avatarList = []
+    if (response && response.success && Array.isArray(response.data)) {
+      avatarList = response.data
+    } else if (Array.isArray(response)) {
+      avatarList = response
+    } else if (response && Array.isArray(response.data)) {
+      avatarList = response.data
     }
-  })
+    
+    // 处理头像数据，API返回格式为 {name, file}
+    availableAvatars.value = avatarList.map((avatar, index) => {
+      let avatarUrl = ''
+      
+      // 根据API返回的格式构建URL
+      if (avatar.file) {
+        // 如果file字段是完整URL，直接使用
+        if (avatar.file.startsWith('http')) {
+          avatarUrl = avatar.file
+        } else {
+          // 如果是相对路径，构建完整URL
+          let filePath = avatar.file
+          // 避免重复的文件扩展名
+          if (filePath.includes('.png.png')) {
+            filePath = filePath.replace('.png.png', '.png')
+          }
+          if (filePath.includes('.jpg.jpg')) {
+            filePath = filePath.replace('.jpg.jpg', '.jpg')
+          }
+          avatarUrl = `http://127.0.0.1:8080/static/${filePath}`
+        }
+      } else if (avatar.url) {
+        avatarUrl = avatar.url
+      } else if (avatar.name) {
+        // 根据名称构建URL，尝试常见的图片格式
+        let fileName = avatar.name
+        if (!fileName.includes('.')) {
+          // 如果没有扩展名，尝试添加.jpg
+          fileName = `${fileName}.jpg`
+        }
+        avatarUrl = `http://127.0.0.1:8080/static/user/avatars/${fileName}`
+      } else {
+        // 兜底方案
+        avatarUrl = `http://127.0.0.1:8080/static/user/avatars/avatar${index + 1}.jpg`
+      }
+      
+      // 从file路径中提取纯文件名（不带路径和扩展名）
+      let pureFileName = ''
+      if (avatar.file) {
+        // 移除路径前缀（如 "user/avatars/"）
+        let fileName = avatar.file.replace(/^.*\//, '')
+        // 移除扩展名（如 .jpg、.png、.jpeg等）
+        pureFileName = fileName.replace(/\.(jpg|png|jpeg|gif|webp)$/i, '')
+      } else if (avatar.name && /^\d+$/.test(avatar.name)) {
+        // 如果name是纯数字，直接使用
+        pureFileName = avatar.name
+      } else {
+        // 兜底方案：使用索引
+        pureFileName = `${index + 1}`
+      }
+      
+      return {
+        id: avatar.id || `avatar-${index + 1}`,
+        url: avatarUrl,
+        name: avatar.name || `头像${index + 1}`,
+        file: pureFileName
+      }
+    })
+    
+    // 去除重复的头像 (基于URL去重)
+    const uniqueAvatars = []
+    const seenUrls = new Set()
+    
+    for (const avatar of availableAvatars.value) {
+      if (!seenUrls.has(avatar.url)) {
+        seenUrls.add(avatar.url)
+        uniqueAvatars.push(avatar)
+      }
+    }
+    
+    availableAvatars.value = uniqueAvatars
+    
+    console.log('去重后的头像列表:', availableAvatars.value)
+    
+    // 如果没有头像数据，提供默认头像
+    if (availableAvatars.value.length === 0) {
+      availableAvatars.value = [
+        {
+          id: 'default',
+          url: 'http://127.0.0.1:8080/static/user/avatars/default.jpg',
+          name: '默认头像',
+          file: 'default'
+        }
+      ]
+    }
+  } catch (error) {
+    console.error('加载头像列表失败:', error)
+    // 提供默认头像作为备选
+    availableAvatars.value = [
+      {
+        id: 'default',
+        url: 'http://127.0.0.1:8080/static/user/avatars/default.jpg',
+        name: '默认头像',
+        file: 'default'
+      }
+    ]
+  }
+}
+
+// 选择预设头像
+function selectAvatar(avatarUrl) {
+  selectedAvatarUrl.value = avatarUrl
+}
+
+// 头像加载错误处理
+function onAvatarLoadError(e, avatar) {
+  console.error('头像加载失败:', e)
+  console.error('图片URL:', e.target?.src || '未知URL')
+  console.error('头像信息:', avatar)
+  
+  // 尝试不同的文件扩展名
+  if (e.target && avatar) {
+    const currentUrl = e.target.src
+    let newUrl = null
+    
+    // 如果当前URL没有扩展名，尝试添加.jpg
+    if (!currentUrl.includes('.jpg') && !currentUrl.includes('.png') && !currentUrl.includes('.jpeg')) {
+      newUrl = `${currentUrl}.jpg`
+    }
+    // 如果是.jpg，尝试.png
+    else if (currentUrl.includes('.jpg')) {
+      newUrl = currentUrl.replace('.jpg', '.png')
+    }
+    // 如果是.png，尝试.jpeg
+    else if (currentUrl.includes('.png') && !currentUrl.includes('.jpeg')) {
+      newUrl = currentUrl.replace('.png', '.jpeg')
+    }
+    
+    // 如果有新的URL可以尝试，并且还没有尝试过这个URL
+    if (newUrl && !e.target.hasAttribute('data-retry')) {
+      e.target.setAttribute('data-retry', 'true')
+      e.target.src = newUrl
+      console.log('尝试新的URL:', newUrl)
+      return
+    }
+  }
+  
+  // 所有尝试都失败了，设置一个默认的占位符图片
+  if (e.target) {
+    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjVGNUY1Ii8+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNDAiIHI9IjE1IiBmaWxsPSIjQ0NDIi8+CjxwYXRoIGQ9Ik0yNSA3NUMyNSA2NS4yMjU0IDMzLjIyNTQgNTcgNDMgNTdINTdDNjYuNzc0NiA1NyA3NSA2NS4yMjU0IDc1IDc1VjgwSDI1Vjc1WiIgZmlsbD0iI0NDQyIvPgo8L3N2Zz4K'
+    e.target.style.opacity = '0.5'
+  }
+}
+
+// 头像加载成功处理
+function onAvatarLoad(e) {
+  console.log('头像加载成功:', e.target?.src)
+}
+
+// 确认头像选择
+async function confirmAvatarSelection() {
+  if (!selectedAvatarUrl.value) {
+    uni.showToast({
+      title: '请选择头像',
+      icon: 'none'
+    })
+    return
+  }
+  
+  try {
+    // 查找选中的头像信息
+    const selectedAvatar = availableAvatars.value.find(avatar => avatar.url === selectedAvatarUrl.value)
+    console.log('选中的头像信息:', selectedAvatar)
+    
+    if (selectedAvatar && selectedAvatar.file) {
+      // 只更新本地显示，不发送后端请求
+      userInfo.value.avatar = selectedAvatarUrl.value
+      userInfo.value.selectedAvatarFile = selectedAvatar.file // 保存文件名，用于后续保存
+      
+      console.log('头像已选择，文件名:', selectedAvatar.file)
+      console.log('头像URL:', selectedAvatarUrl.value)
+      
+      closeAvatarModal()
+      
+      uni.showToast({
+        title: '头像已选择',
+        icon: 'success'
+      })
+      
+    } else {
+      // 直接使用选中的URL
+      userInfo.value.avatar = selectedAvatarUrl.value
+      closeAvatarModal()
+      
+      uni.showToast({
+        title: '头像已选择',
+        icon: 'success'
+      })
+    }
+  } catch (error) {
+    console.error('选择头像失败:', error)
+    uni.showToast({
+      title: '选择头像失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 关闭头像选择模态框
+function closeAvatarModal() {
+  showAvatarModal.value = false
+  selectedAvatarUrl.value = ''
 }
 
 // 保存用户信息
@@ -737,10 +1030,15 @@ async function saveUserInfo() {
       gender: userInfo.value.gender === '男' ? 'MALE' : 
               userInfo.value.gender === '女' ? 'FEMALE' : 'UNKNOWN',
       region: finalLocation,
-      avatar: userInfo.value.avatar ? userInfo.value.avatar.replace('http://127.0.0.1:8080/static/', '') : 'user/avatars/default.jpg',
+      avatar: userInfo.value.selectedAvatarFile || 
+              (userInfo.value.avatar ? apiUtils.extractAvatarFileName(userInfo.value.avatar.replace('http://127.0.0.1:8080/static/', '')) : 'default'),
       birthday: userInfo.value.birthday,
       hobby: userInfo.value.hobbies || ''
     }
+    
+    console.log('保存的头像文件名:', userInfo.value.selectedAvatarFile)
+    console.log('原始头像URL:', userInfo.value.avatar)
+    console.log('最终头像文件名:', updateData.avatar)
     
     console.log('发送给后端的用户信息:', updateData)
     
@@ -1631,8 +1929,10 @@ async function submitCounselorApplication() {
 
 .modal-body {
   flex: 1;
-  padding: 32rpx;
-  max-height: 60vh;
+  padding: 24rpx;
+  min-height: 400rpx;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .form-group {
@@ -1776,5 +2076,180 @@ async function submitCounselorApplication() {
 
 .submit-btn:active {
   opacity: 0.8;
+}
+
+/* 头像选择模态框样式 */
+.avatar-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 95%;
+  height: 100%;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-modal-content {
+  width: 95%;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.avatar-options {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.avatar-option-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.avatar-option-section .section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  padding-bottom: 10rpx;
+  border-bottom: 2rpx solid #e0e0e0;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20rpx;
+  padding: 10rpx 30rpx;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 200rpx;
+  grid-auto-rows: minmax(120rpx, auto);
+}
+.avatar-option {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 4rpx solid #e0e0e0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 90%; /* 调整为90% */
+  max-width: 100%;
+  box-sizing: border-box;
+  background: #f9f9f9;
+  margin: 0 auto; /* 居中显示 */
+}
+
+.avatar-option:hover {
+  border-color: #bbb;
+  transform: scale(1.02);
+  box-shadow: 0 0 10rpx rgba(0, 0, 0, 0.1);
+}
+
+.avatar-option.active {
+  border-color: #ec407a;
+  border-width: 6rpx;
+  transform: scale(1.05);
+  box-shadow: 0 0 20rpx rgba(236, 64, 122, 0.4);
+  background: #fff;
+}
+
+.avatar-preview {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.avatar-check {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 45rpx;
+  height: 45rpx;
+  background: #ec407a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3rpx solid #fff;
+  box-shadow: 0 2rpx 8rpx rgba(236, 64, 122, 0.3);
+}
+
+.check-icon {
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: bold;
+}
+
+.loading-avatars {
+  text-align: center;
+  padding: 60rpx 0;
+  color: #666;
+  font-size: 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.loading-spinner-small {
+  display: flex;
+  gap: 8rpx;
+}
+
+.loading-spinner-small .dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #ec407a;
+  animation: loading-bounce 1.4s ease-in-out infinite both;
+}
+
+.loading-spinner-small .dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.loading-spinner-small .dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+.loading-spinner-small .dot:nth-child(3) {
+  animation-delay: 0s;
+}
+
+.submit-btn:disabled,
+.submit-btn.disabled {
+  background: #ccc !important;
+  opacity: 0.6 !important;
+  cursor: not-allowed;
+}
+
+/* 响应式布局调整 */
+@media (max-width: 750rpx) {
+  .avatar-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15rpx;
+  }
+  
+  .modal-body {
+    padding: 20rpx;
+  }
+}
+
+@media (max-width: 500rpx) {
+  .avatar-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12rpx;
+  }
+  
+  .modal-body {
+    padding: 16rpx;
+  }
 }
 </style>
