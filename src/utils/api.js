@@ -371,6 +371,13 @@ export const counselorAPI = {
         }
       })
     })
+  },
+  
+  // 获取咨询师申请反馈
+  getConsultantApplications() {
+    return request('/api/user/consultant/applications', {
+      method: 'GET'
+    })
   }
 }
 

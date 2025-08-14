@@ -44,33 +44,7 @@
       <!-- 昵称 -->
       <view class="form-item">
         <text class="label">昵称😊</text>
-        <input 
-          v-model="userInfo.nickname"
-          class="input-field"
-          placeholder="请输入昵称"
-          maxlength="20"
-        />
-      </view>
-
-      <!-- 性别选择 - 提供男女和未知选项来保护隐私 -->
-      <view class="form-item">
-        <text class="label">性别👫</text>
-        <view class="gender-container">
-          <view 
-            v-for="option in genderOptions"
-            :key="option.value"
-            class="gender-option"
-            :class="{ active: userInfo.gender === option.value }"
-            @click="selectGender(option.value)"
-          >
-            <text class="gender-text">{{ option.label }}</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 生日 -->
-      <view class="form-item">
-        <text class="label">生日🎂</text>
+       
         <picker 
           mode="date" 
           :value="userInfo.birthday"
@@ -143,6 +117,16 @@
     <view class="action-section">
       <view class="section-title">账户操作</view>
       <view class="action-buttons">
+        <!-- 咨询师申请状态按钮 -->
+        <button class="action-btn status-btn" @click="showApplicationDetails">
+          <text class="action-icon">📋</text>
+          <text class="action-text">咨询师申请状态</text>
+          <text v-if="consultantApplicationStatus === 'PENDING'" class="status-indicator pending">等待审核</text>
+          <text v-else-if="consultantApplicationStatus === 'APPROVED'" class="status-indicator approved">审核通过</text>
+          <text v-else-if="consultantApplicationStatus === 'REJECTED'" class="status-indicator rejected">审核失败</text>
+          <text v-else class="status-indicator no-application">暂无申请</text>
+        </button>
+        
         <button class="action-btn counselor-btn" @click="applyCounselor">
           <text class="action-icon">👨‍⚕️</text>
           <text class="action-text">申请成为咨询师</text>
@@ -380,6 +364,104 @@
         </view>
       </view>
     </view>
+
+    <!-- 申请状态详情弹窗 -->
+    <view v-if="showApplicationStatus" class="application-status-modal">
+      <view class="modal-overlay" @click="closeApplicationStatus"></view>
+      <view class="modal-content application-status-content">
+        <view class="modal-header">
+          <text class="modal-title">咨询师申请状态</text>
+          <view class="close-btn" @click="closeApplicationStatus">✕</view>
+        </view>
+        
+        <scroll-view scroll-y class="modal-body">
+          <view v-if="applicationStatus" class="application-details">
+            <!-- 审核通过的特殊显示 -->
+            <view v-if="applicationStatus.status === 'APPROVED' && !applicationStatus.name" class="approved-content">
+              <view class="approved-icon">🎉</view>
+              <view class="approved-title">恭喜！申请已通过</view>
+              <view class="approved-text">
+                您的咨询师申请已通过审核，现在您可以开始提供咨询服务了。
+              </view>
+            </view>
+            
+            <!-- 正常申请记录显示 -->
+            <view v-else>
+              <!-- 基本信息 -->
+              <view class="info-section">
+                <!-- 申请编号已隐藏，不再显示 -->
+                <view v-if="applicationStatus.name" class="info-row">
+                    <text class="info-label">申请人:</text>
+                    <text class="info-value">{{ applicationStatus.name }}</text>
+                </view>
+                <view v-if="applicationStatus.phone" class="info-row">
+                    <text class="info-label">手机号:</text>
+                    <text class="info-value">{{ applicationStatus.phone }}</text>
+                </view>
+                <view v-if="applicationStatus.education" class="info-row">
+                    <text class="info-label">学历:</text>
+                    <text class="info-value">{{ applicationStatus.education }}</text>
+                </view>
+                <view v-if="applicationStatus.university" class="info-row">
+                    <text class="info-label">学校:</text>
+                    <text class="info-value">{{ applicationStatus.university }}</text>
+                </view>
+                <view v-if="applicationStatus.major" class="info-row">
+                    <text class="info-label">专业:</text>
+                    <text class="info-value">{{ applicationStatus.major }}</text>
+                </view>
+                <view v-if="applicationStatus.experienceYears" class="info-row">
+                    <text class="info-label">工作年限:</text>
+                    <text class="info-value">{{ applicationStatus.experienceYears }}年</text>
+                </view>
+                <view v-if="applicationStatus.specialty" class="info-row">
+                    <text class="info-label">专长领域:</text>
+                    <text class="info-value">{{ applicationStatus.specialty?.join(', ') || '无' }}</text>
+                </view>
+              </view>
+            
+            <!-- 申请状态 -->
+            <view class="status-section">
+              <view class="status-header">
+                <text class="status-label">申请状态:</text>
+                <text class="status-value" :class="applicationStatus.status.toLowerCase()">
+                  {{ applicationStatus.status === 'PENDING' ? '等待审核' : 
+                      applicationStatus.status === 'APPROVED' ? '审核通过' : 
+                      applicationStatus.status === 'REJECTED' ? '审核失败' : applicationStatus.status }}
+                </text>
+              </view>
+              
+              <!-- 审核意见 -->
+              <view v-if="applicationStatus.reviewComment" class="review-section">
+                <text class="review-label">{{ applicationStatus.status === 'REJECTED' ? '拒绝原因:' : '审核意见:' }}</text>
+                <view class="review-comment">
+                  <text>{{ applicationStatus.reviewComment }}</text>
+                </view>
+              </view>
+              
+              <view v-if="applicationStatus.createdAt" class="apply-time">
+                  <text class="time-label">申请时间:</text>
+                  <text class="time-value">{{ new Date(applicationStatus.createdAt).toLocaleString() }}</text>
+              </view>
+            </view>
+            </view>
+          </view>
+          
+          <!-- 没有申请记录时的内容 -->
+          <view v-else class="no-application-content">
+            <view class="no-application-icon">📝</view>
+            <view class="no-application-title">暂无咨询师申请记录</view>
+            <view class="no-application-text">
+              您还没有提交过咨询师申请。如需成为咨询师，请通过相关渠道提交申请。
+            </view>
+          </view>
+        </scroll-view>
+        
+        <view class="modal-footer">
+          <button class="confirm-btn" @click="closeApplicationStatus">确定</button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -447,6 +529,11 @@ const counselorApplication = ref({
   reason: ''
 })
 
+// 咨询师申请状态相关
+const applicationStatus = ref(null) // 申请状态数据
+const showApplicationStatus = ref(false) // 是否显示申请状态
+const consultantApplicationStatus = ref(null) // 咨询师申请状态标识
+
 // 学历选项
 const educationOptions = [
   '高中及以下',
@@ -474,6 +561,12 @@ const specialtyOptions = [
 
 onMounted(() => {
   loadUserInfo()
+  loadApplicationStatus() // 加载咨询师申请状态
+  
+  // 将测试函数暴露到全局，方便调试
+  window.testApplicationStatus = testApplicationStatus
+  window.loadApplicationStatus = loadApplicationStatus
+  window.showApplicationDetails = showApplicationDetails
 })
 
 // 封装全局 loading 动画启动
@@ -751,6 +844,11 @@ async function loadAvailableAvatars() {
       avatarList = response.data
     }
     
+    // 过滤掉 valid=false 的头像
+    avatarList = avatarList.filter(avatar => avatar.valid !== false)
+    
+    console.log('过滤后的头像数据:', avatarList)
+    
     // 处理头像数据，API返回格式为 {name, file}
     availableAvatars.value = avatarList.map((avatar, index) => {
       let avatarUrl = ''
@@ -853,6 +951,111 @@ async function loadAvailableAvatars() {
 // 选择预设头像
 function selectAvatar(avatarUrl) {
   selectedAvatarUrl.value = avatarUrl
+}
+
+// 获取咨询师申请状态
+async function loadApplicationStatus() {
+  try {
+    console.log('=== 开始获取咨询师申请状态 ===')
+    const response = await counselorAPI.getConsultantApplications()
+    console.log('API 原始响应:', JSON.stringify(response, null, 2))
+    
+    // 根据新的业务逻辑处理响应
+    if (Array.isArray(response)) {
+      if (response.length === 0) {
+        // 空数组表示没有申请记录
+        console.log('没有申请记录 - 返回空数组')
+        applicationStatus.value = null
+        consultantApplicationStatus.value = null
+      } else {
+        // 有数据表示等待审核或审核失败
+        const application = response[0]
+        console.log('找到申请记录:', application)
+        console.log('申请状态:', application.status)
+        console.log('审核意见:', application.reviewComment)
+        
+        applicationStatus.value = application
+        consultantApplicationStatus.value = application.status
+        
+        console.log('设置后的 applicationStatus:', applicationStatus.value)
+        console.log('设置后的 consultantApplicationStatus:', consultantApplicationStatus.value)
+        
+        // 强制触发响应式更新
+        setTimeout(() => {
+          console.log('延迟检查状态:', consultantApplicationStatus.value)
+        }, 100)
+      }
+    } else if (response && response.success && response.data) {
+      // 标准格式处理
+      if (Array.isArray(response.data)) {
+        if (response.data.length === 0) {
+          // 没有申请记录
+          console.log('没有申请记录 - 数据为空数组')
+          applicationStatus.value = null
+          consultantApplicationStatus.value = null
+        } else {
+          const application = response.data[0]
+          applicationStatus.value = application
+          consultantApplicationStatus.value = application.status
+        }
+      }
+    } else {
+      // 没有申请记录
+      console.log('没有申请记录')
+      applicationStatus.value = null
+      consultantApplicationStatus.value = null
+    }
+    
+    console.log('=== 最终的申请状态 ===')
+    console.log('applicationStatus.value:', applicationStatus.value)
+    console.log('consultantApplicationStatus.value:', consultantApplicationStatus.value)
+    
+  } catch (error) {
+    console.error('获取申请状态失败:', error)
+    applicationStatus.value = null
+    consultantApplicationStatus.value = null
+  }
+}
+
+// 显示申请状态详情
+function showApplicationDetails() {
+  // 总是显示弹窗，不管是否有申请记录
+  console.log('=== 显示申请详情 ===')
+  console.log('当前 applicationStatus:', applicationStatus.value)
+  console.log('当前 consultantApplicationStatus:', consultantApplicationStatus.value)
+  showApplicationStatus.value = true
+}
+
+// 测试函数 - 手动设置申请状态
+function testApplicationStatus() {
+  console.log('=== 测试设置申请状态 ===')
+  applicationStatus.value = {
+    "id": 6,
+    "userId": 7,
+    "name": "1",
+    "phone": "13433333333",
+    "idCardNumber": "421222222222222222",
+    "education": "高中及以下",
+    "university": "1",
+    "major": "1",
+    "licenseNumber": "",
+    "experienceYears": 1,
+    "specialty": [
+      "焦虑抑郁"
+    ],
+    "reason": "1",
+    "bio": "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+    "status": "REJECTED",
+    "createdAt": "2025-08-14T15:51:11.009445",
+    "reviewComment": "11"
+  }
+  consultantApplicationStatus.value = 'REJECTED'
+  console.log('设置完成，当前状态:', applicationStatus.value)
+}
+
+// 关闭申请状态详情
+function closeApplicationStatus() {
+  showApplicationStatus.value = false
 }
 
 // 头像加载错误处理
@@ -1471,17 +1674,19 @@ async function submitCounselorApplication() {
 .form-item textarea.textarea-field {
   margin-top: 0;
 }
-.form-item .label {
-  align-self: flex-start;
-  margin-top: 2rpx;
-}
+/* 删除多余的右花括号，修复 CSS 语法错误 */
 
 .form-item:last-child {
   border-bottom: none;
 }
 
 .avatar-item {
+    margin-left: 8px;
+    white-space: nowrap;
   align-items: flex-start;
+}
+.action-text {
+  white-space: nowrap;
 }
 
 .label {
@@ -1929,7 +2134,8 @@ async function submitCounselorApplication() {
 
 .modal-body {
   flex: 1;
-  padding: 24rpx;
+  width: 100%;
+  padding: 0 12px;
   min-height: 400rpx;
   max-height: 80vh;
   overflow-y: auto;
@@ -2237,9 +2443,6 @@ async function submitCounselorApplication() {
     gap: 15rpx;
   }
   
-  .modal-body {
-    padding: 20rpx;
-  }
 }
 
 @media (max-width: 500rpx) {
@@ -2247,9 +2450,243 @@ async function submitCounselorApplication() {
     grid-template-columns: repeat(3, 1fr);
     gap: 12rpx;
   }
-  
-  .modal-body {
-    padding: 16rpx;
-  }
 }
+
+/* 申请状态弹窗样式 */
+.application-status-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.application-status-content {
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  background: white;
+  border-radius: 15px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.application-details {
+  padding: 20px 0px;
+  flex: 1;
+}
+
+.info-section {
+  margin-bottom: 20px;
+}
+
+.info-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 10px 0;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+
+.info-label {
+  color: #666;
+  font-size: 14px;
+  width: 100px;
+  margin-bottom: 2px;
+}
+
+.info-value {
+  color: #333;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+  word-break: break-all;
+  white-space: pre-line;
+  overflow-wrap: break-word;
+  text-align: left;
+  margin: 0;
+  max-width: 100%;
+}
+
+.status-section {
+  background: #f8f9fa;
+  border-radius: 10px;
+  margin-right: 20px;
+  align-items: center;
+  flex:1;
+  overflow:hidden;
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.status-label {
+  color: #666;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.status-value {
+  font-size: 14px;
+  font-weight: bold;
+  padding: 5px 12px;
+  border-radius: 20px;
+  color: white;
+}
+
+.status-value.pending {
+  background-color: #ffc107;
+}
+
+.status-value.approved {
+  background-color: #28a745;
+}
+
+.status-value.rejected {
+  background-color: #dc3545;
+}
+
+.status-indicator.no-application {
+  background-color: #6c757d;
+}
+
+.review-section {
+  margin-top: 15px;
+}
+
+.review-label {
+  color: #666;
+  font-size: 14px;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.review-comment {
+  background: white;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #e9ecef;
+  min-height: 60px;
+}
+
+.review-comment text {
+  color: #333;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.apply-time {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e9ecef;
+}
+
+.time-label {
+  color: #666;
+  font-size: 12px;
+}
+
+.time-value {
+  color: #999;
+  font-size: 12px;
+}
+
+.modal-footer {
+  padding: 20px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: center;
+}
+
+.confirm-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 25px;
+  padding: 12px 30px;
+  font-size: 16px;
+  font-weight: bold;
+  min-width: 120px;
+}
+
+.no-application-content {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.no-application-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.no-application-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.no-application-text {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.approved-content {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.approved-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.approved-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #28a745;
+  margin-bottom: 15px;
+}
+
+.approved-text {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  max-width: 300px;
+  margin: 0 auto;
+
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px 0;
+  min-height: 40px;
+  word-break: break-all;
+}
+
+.info-label {
+          color: #666;
+          font-size: 14px;
+          flex-shrink: 0;
+          width: 100px;
+          line-height: 1.6;
+        }
 </style>
