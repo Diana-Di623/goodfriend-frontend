@@ -1,3 +1,4 @@
+
 <template>
   <view class="profile-page">
     <!-- 全局加载遮罩 -->
@@ -44,7 +45,32 @@
       <!-- 昵称 -->
       <view class="form-item">
         <text class="label">昵称😊</text>
-       
+        <input
+          v-model="userInfo.nickname"
+          class="input-field"
+          placeholder="请输入昵称"
+          maxlength="20"
+        />
+      </view>
+      <!-- 性别选择 - 提供男女和未知选项来保护隐私 -->
+      <view class="form-item">
+        <text class="label">性别👫</text>
+        <view class="gender-container">
+          <view 
+            v-for="option in genderOptions"
+            :key="option.value"
+            class="gender-option"
+            :class="{ active: userInfo.gender === option.value }"
+            @click="selectGender(option.value)"
+          >
+            <text class="gender-text">{{ option.label }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 生日 -->
+      <view class="form-item">
+        <text class="label">生日🎂</text>
         <picker 
           mode="date" 
           :value="userInfo.birthday"
@@ -59,7 +85,6 @@
           </view>
         </picker>
       </view>
-
       <!-- 所在地区 -->
       <view class="form-item">
         <text class="label">所在地区📍</text>
@@ -106,6 +131,22 @@
           maxlength="200"
         />
       </view>
+
+      <!-- 咨询方式 -->
+      <view class="form-item" v-if="userInfo.consultationMethods && userInfo.consultationMethods.length > 0">
+        <text class="label consultant-info-label">咨询方式💬</text>
+        <view class="consultation-methods-field">
+          <text class="consultation-methods-text">{{ userInfo.consultationMethods.join('、') }}</text>
+        </view>
+      </view>
+
+      <!-- 可用时间 -->
+      <view class="form-item" v-if="userInfo.availability">
+        <text class="label consultant-info-label">可用时间⏰</text>
+        <view class="availability-field">
+          <text class="availability-text">{{ userInfo.availability }}</text>
+        </view>
+      </view>
     </view>
 
     <!-- 保存按钮 -->
@@ -121,10 +162,7 @@
         <button class="action-btn status-btn" @click="showApplicationDetails">
           <text class="action-icon">📋</text>
           <text class="action-text">咨询师申请状态</text>
-          <text v-if="consultantApplicationStatus === 'PENDING'" class="status-indicator pending">等待审核</text>
-          <text v-else-if="consultantApplicationStatus === 'APPROVED'" class="status-indicator approved">审核通过</text>
-          <text v-else-if="consultantApplicationStatus === 'REJECTED'" class="status-indicator rejected">审核失败</text>
-          <text v-else class="status-indicator no-application">暂无申请</text>
+
         </button>
         
         <button class="action-btn counselor-btn" @click="applyCounselor">
@@ -138,30 +176,31 @@
         </button>
       </view>
     </view>
-
-    <!-- 底部导航栏 -->
-    <view class="bottom-nav">
-      <view class="nav-item" @click="goHome">
-        <text class="nav-icon">🏠</text>
-        <text class="nav-label">首页</text>
-      </view>
-      <view class="nav-item" @click="handleWishClick">
-        <text class="nav-icon">💭</text>
-        <text class="nav-label">心愿心语</text>
-        <view v-if="unreadMessageCount > 0" class="nav-badge">
-          {{ unreadMessageCount > 99 ? '99+' : unreadMessageCount }}
-        </view>
-      </view>
-      <view class="nav-item" @click="goTestResults">
-        <text class="nav-icon">📊</text>
-        <text class="nav-label">测评结果</text>
-      </view>
-      <view class="nav-item active">
-        <text class="nav-icon">👤</text>
-        <text class="nav-label">个人中心</text>
+      <view class="bottom-nav">
+    <view class="nav-item" @click="goHome">
+      <text class="nav-icon">🏠</text>
+      <text class="nav-label">首页</text>
+    </view>
+    <view class="nav-item" @click="handleWishClick">
+      <text class="nav-icon">💭</text>
+      <text class="nav-label">心愿心语</text>
+      <view v-if="unreadMessageCount > 0" class="nav-badge">
+        {{ unreadMessageCount > 99 ? '99+' : unreadMessageCount }}
       </view>
     </view>
-
+    <view class="nav-item" @click="goTestResults">
+      <text class="nav-icon">📊</text>
+      <text class="nav-label">测评结果</text>
+    </view>
+    <view class="nav-item" @click="goMyAppointments">
+      <text class="nav-icon">📅</text>
+      <text class="nav-label">我的预约</text>
+    </view>
+    <view class="nav-item">
+      <text class="nav-icon">👤</text>
+      <text class="nav-label">个人中心</text>
+    </view>
+  </view>
     <!-- 申请咨询师弹窗 -->
     <view v-if="showCounselorModal" class="counselor-modal">
       <view class="modal-overlay" @click="closeCounselorModal"></view>
@@ -467,20 +506,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { GENDER_OPTIONS, REGION_OPTIONS, BIRTHDAY_CONFIG, isValidGender, isValidBirthday, calculateAge, getGenderLabel } from '@/utils/constants.js'
-import { userAPI, counselorAPI } from '@/utils/api.js'
-import apiUtils from '@/utils/api.js'
-
-// 未读消息数量
-const unreadMessageCount = ref(15)
-
-// 进度条相关
-const isPageLoading = ref(false)
-const progressBarWidth = ref(0)
-const loadingText = ref('加载中...')
-
-// 进度条定时器
-let progressTimer = null
+import { GENDER_OPTIONS, REGION_OPTIONS, BIRTHDAY_CONFIG,unreadMessageCount , isValidGender, isValidBirthday, calculateAge} from '@/utils/constants.js'
+import { userAPI, counselorAPI,BASE_URL} from '@/utils/api.js'
+import {handleWishClick,goHome,goTestResults, progressBarWidth,goMyAppointments,isUserInfoComplete,isPageLoading,loadingText} from '@/utils/page-turning.js'
 
 // 性别选项
 const genderOptions = GENDER_OPTIONS
@@ -505,7 +533,9 @@ const userInfo = ref({
   customLocation: '', // 自定义地区（当选择"其他"时）
   phone: '',
   hobbies: '',
-  selectedAvatarFile: '' // 保存选中的头像文件名，用于后端提交
+  selectedAvatarFile: '', // 保存选中的头像文件名，用于后端提交
+  consultationMethods: [], // 咨询方式
+  availability: '' // 可用时间
 })
 
 // 头像选择相关
@@ -561,46 +591,7 @@ const specialtyOptions = [
 
 onMounted(() => {
   loadUserInfo()
-  loadApplicationStatus() // 加载咨询师申请状态
-  
-  // 将测试函数暴露到全局，方便调试
-  window.testApplicationStatus = testApplicationStatus
-  window.loadApplicationStatus = loadApplicationStatus
-  window.showApplicationDetails = showApplicationDetails
 })
-
-// 封装全局 loading 动画启动
-function showLoadingWithProgress(duration = 500, text = '加载中...') {
-  isPageLoading.value = true
-  progressBarWidth.value = 0
-  loadingText.value = text
-  if (progressTimer) clearInterval(progressTimer)
-  setTimeout(() => {
-    let start = Date.now()
-    progressTimer = setInterval(() => {
-      const elapsed = Date.now() - start
-      let percent = Math.min(100, (elapsed / duration) * 100)
-      progressBarWidth.value = percent
-      if (percent >= 100) {
-        clearInterval(progressTimer)
-        isPageLoading.value = false
-      }
-    }, 16)
-  }, 30)
-}
-
-// 检查用户信息是否完整
-function isUserInfoComplete(userInfo) {
-  return !!(
-    userInfo &&
-    userInfo.nickname &&
-    userInfo.nickname.trim() &&
-    userInfo.gender &&
-    userInfo.birthday &&
-    userInfo.location &&
-    userInfo.phone
-  )
-}
 
 // 加载用户信息
 async function loadUserInfo() {
@@ -615,7 +606,9 @@ async function loadUserInfo() {
       location: storedInfo.location || '',
       customLocation: storedInfo.customLocation || '',
       phone: storedInfo.phone || '',
-      hobbies: storedInfo.hobbies || ''
+      hobbies: storedInfo.hobbies || '',
+      consultationMethods: storedInfo.consultationMethods || [],
+      availability: storedInfo.availability || ''
     }
     
     // 设置地区选择器索引
@@ -637,7 +630,7 @@ async function loadUserInfo() {
         if (response) {
           // 更新用户信息
           const serverUserInfo = {
-            avatar: response.avatar ? `http://127.0.0.1:8080/static/${response.avatar}` : userInfo.value.avatar,
+            avatar: response.avatar ? `${BASE_URL}/static/${response.avatar}` : userInfo.value.avatar,
             nickname: response.name || userInfo.value.nickname,
             gender: response.gender === 'MALE' ? '男' : 
                    response.gender === 'FEMALE' ? '女' : 
@@ -646,7 +639,9 @@ async function loadUserInfo() {
             location: response.region || userInfo.value.location,
             customLocation: userInfo.value.customLocation,
             phone: userInfo.value.phone,
-            hobbies: response.hobby || userInfo.value.hobbies
+            hobbies: response.hobby || userInfo.value.hobbies,
+            consultationMethods: response.consultationMethods || userInfo.value.consultationMethods || [],
+            availability: response.availability || userInfo.value.availability || ''
           }
           
           userInfo.value = serverUserInfo
@@ -701,113 +696,6 @@ function onRegionChange(e) {
   }
 }
 
-// 首页导航
-function goHome() {
-  // 检查登录状态
-  const token = uni.getStorageSync('token')
-  if (!token) {
-    uni.showToast({
-      title: '请先登录',
-      icon: 'none',
-      duration: 2000
-    })
-    return
-  }
-  
-  // 检查个人信息是否完整
-  const storedUserInfo = uni.getStorageSync('userInfo')
-  if (!isUserInfoComplete(storedUserInfo)) {
-    uni.showModal({
-      title: '请先完善个人信息',
-      content: '使用完整功能前，请先完善您的个人资料，包括昵称、性别、生日、地区等信息',
-      showCancel: false,
-      confirmText: '我知道了'
-    })
-    return
-  }
-  
-  // 显示进度条加载动画
-  showLoadingWithProgress(800, '正在跳转首页...')
-  
-  setTimeout(() => {
-    // 设置标志，避免首页重复加载
-    uni.setStorageSync('skipHomeLoading', true)
-    uni.reLaunch({
-      url: '/pages/index/index'
-    })
-  }, 800)
-}
-
-// 心愿心语导航
-function handleWishClick() {
-  // 检查登录状态
-  const token = uni.getStorageSync('token')
-  if (!token) {
-    uni.showToast({
-      title: '需要会员登录才能使用此功能',
-      icon: 'none',
-      duration: 2000
-    })
-    return
-  }
-  
-  // 检查个人信息是否完整
-  const storedUserInfo = uni.getStorageSync('userInfo')
-  if (!isUserInfoComplete(storedUserInfo)) {
-    uni.showModal({
-      title: '请先完善个人信息',
-      content: '使用心愿心语功能前，请先完善您的个人资料',
-      showCancel: false,
-      confirmText: '我知道了'
-    })
-    return
-  }
-  
-  // 显示进度条加载动画
-  showLoadingWithProgress(1000, '正在打开心愿心语...')
-  
-  setTimeout(() => {
-    uni.navigateTo({
-      url: '/pages/wish/wish'
-    })
-  }, 1000)
-}
-
-// 测评结果导航
-function goTestResults() {
-  // 检查登录状态
-  const token = uni.getStorageSync('token')
-  if (!token) {
-    uni.showToast({
-      title: '需要会员登录才能使用此功能',
-      icon: 'none',
-      duration: 2000
-    })
-    return
-  }
-  
-  // 检查个人信息是否完整
-  const storedUserInfo = uni.getStorageSync('userInfo')
-  if (!isUserInfoComplete(storedUserInfo)) {
-    uni.showModal({
-      title: '请先完善个人信息',
-      content: '使用测评功能前，请先完善您的个人资料',
-      showCancel: false,
-      confirmText: '我知道了'
-    })
-    return
-  }
-  
-  // 显示进度条加载动画
-  showLoadingWithProgress(1000, '正在加载测评结果...')
-  
-  setTimeout(() => {
-    uni.navigateTo({
-      url: '/pages/test/results'
-    })
-  }, 1000)
-}
-
 // 选择头像
 async function chooseAvatar() {
   try {
@@ -847,64 +735,16 @@ async function loadAvailableAvatars() {
     // 过滤掉 valid=false 的头像
     avatarList = avatarList.filter(avatar => avatar.valid !== false)
     
-    console.log('过滤后的头像数据:', avatarList)
-    
     // 处理头像数据，API返回格式为 {name, file}
     availableAvatars.value = avatarList.map((avatar, index) => {
-      let avatarUrl = ''
-      
-      // 根据API返回的格式构建URL
-      if (avatar.file) {
-        // 如果file字段是完整URL，直接使用
-        if (avatar.file.startsWith('http')) {
-          avatarUrl = avatar.file
-        } else {
-          // 如果是相对路径，构建完整URL
-          let filePath = avatar.file
-          // 避免重复的文件扩展名
-          if (filePath.includes('.png.png')) {
-            filePath = filePath.replace('.png.png', '.png')
-          }
-          if (filePath.includes('.jpg.jpg')) {
-            filePath = filePath.replace('.jpg.jpg', '.jpg')
-          }
-          avatarUrl = `http://127.0.0.1:8080/static/${filePath}`
-        }
-      } else if (avatar.url) {
-        avatarUrl = avatar.url
-      } else if (avatar.name) {
-        // 根据名称构建URL，尝试常见的图片格式
-        let fileName = avatar.name
-        if (!fileName.includes('.')) {
-          // 如果没有扩展名，尝试添加.jpg
-          fileName = `${fileName}.jpg`
-        }
-        avatarUrl = `http://127.0.0.1:8080/static/user/avatars/${fileName}`
-      } else {
-        // 兜底方案
-        avatarUrl = `http://127.0.0.1:8080/static/user/avatars/avatar${index + 1}.jpg`
-      }
-      
-      // 从file路径中提取纯文件名（不带路径和扩展名）
-      let pureFileName = ''
-      if (avatar.file) {
-        // 移除路径前缀（如 "user/avatars/"）
-        let fileName = avatar.file.replace(/^.*\//, '')
-        // 移除扩展名（如 .jpg、.png、.jpeg等）
-        pureFileName = fileName.replace(/\.(jpg|png|jpeg|gif|webp)$/i, '')
-      } else if (avatar.name && /^\d+$/.test(avatar.name)) {
-        // 如果name是纯数字，直接使用
-        pureFileName = avatar.name
-      } else {
-        // 兜底方案：使用索引
-        pureFileName = `${index + 1}`
-      }
-      
+      let filePath = avatar.file
+      let avatarUrl = `${BASE_URL}/static/${filePath}`
+      let fileName = avatar.name
       return {
         id: avatar.id || `avatar-${index + 1}`,
         url: avatarUrl,
         name: avatar.name || `头像${index + 1}`,
-        file: pureFileName
+        file: fileName
       }
     })
     
@@ -921,14 +761,14 @@ async function loadAvailableAvatars() {
     
     availableAvatars.value = uniqueAvatars
     
-    console.log('去重后的头像列表:', availableAvatars.value)
+    console.log('头像列表:', availableAvatars.value)
     
     // 如果没有头像数据，提供默认头像
     if (availableAvatars.value.length === 0) {
       availableAvatars.value = [
         {
           id: 'default',
-          url: 'http://127.0.0.1:8080/static/user/avatars/default.jpg',
+          url: `${BASE_URL}/static/user/avatars/default.jpg`,
           name: '默认头像',
           file: 'default'
         }
@@ -940,7 +780,7 @@ async function loadAvailableAvatars() {
     availableAvatars.value = [
       {
         id: 'default',
-        url: 'http://127.0.0.1:8080/static/user/avatars/default.jpg',
+        url: `${BASE_URL}/static/user/avatars/default.jpg`,
         name: '默认头像',
         file: 'default'
       }
@@ -953,70 +793,6 @@ function selectAvatar(avatarUrl) {
   selectedAvatarUrl.value = avatarUrl
 }
 
-// 获取咨询师申请状态
-async function loadApplicationStatus() {
-  try {
-    console.log('=== 开始获取咨询师申请状态 ===')
-    const response = await counselorAPI.getConsultantApplications()
-    console.log('API 原始响应:', JSON.stringify(response, null, 2))
-    
-    // 根据新的业务逻辑处理响应
-    if (Array.isArray(response)) {
-      if (response.length === 0) {
-        // 空数组表示没有申请记录
-        console.log('没有申请记录 - 返回空数组')
-        applicationStatus.value = null
-        consultantApplicationStatus.value = null
-      } else {
-        // 有数据表示等待审核或审核失败
-        const application = response[0]
-        console.log('找到申请记录:', application)
-        console.log('申请状态:', application.status)
-        console.log('审核意见:', application.reviewComment)
-        
-        applicationStatus.value = application
-        consultantApplicationStatus.value = application.status
-        
-        console.log('设置后的 applicationStatus:', applicationStatus.value)
-        console.log('设置后的 consultantApplicationStatus:', consultantApplicationStatus.value)
-        
-        // 强制触发响应式更新
-        setTimeout(() => {
-          console.log('延迟检查状态:', consultantApplicationStatus.value)
-        }, 100)
-      }
-    } else if (response && response.success && response.data) {
-      // 标准格式处理
-      if (Array.isArray(response.data)) {
-        if (response.data.length === 0) {
-          // 没有申请记录
-          console.log('没有申请记录 - 数据为空数组')
-          applicationStatus.value = null
-          consultantApplicationStatus.value = null
-        } else {
-          const application = response.data[0]
-          applicationStatus.value = application
-          consultantApplicationStatus.value = application.status
-        }
-      }
-    } else {
-      // 没有申请记录
-      console.log('没有申请记录')
-      applicationStatus.value = null
-      consultantApplicationStatus.value = null
-    }
-    
-    console.log('=== 最终的申请状态 ===')
-    console.log('applicationStatus.value:', applicationStatus.value)
-    console.log('consultantApplicationStatus.value:', consultantApplicationStatus.value)
-    
-  } catch (error) {
-    console.error('获取申请状态失败:', error)
-    applicationStatus.value = null
-    consultantApplicationStatus.value = null
-  }
-}
-
 // 显示申请状态详情
 function showApplicationDetails() {
   // 总是显示弹窗，不管是否有申请记录
@@ -1024,33 +800,6 @@ function showApplicationDetails() {
   console.log('当前 applicationStatus:', applicationStatus.value)
   console.log('当前 consultantApplicationStatus:', consultantApplicationStatus.value)
   showApplicationStatus.value = true
-}
-
-// 测试函数 - 手动设置申请状态
-function testApplicationStatus() {
-  console.log('=== 测试设置申请状态 ===')
-  applicationStatus.value = {
-    "id": 6,
-    "userId": 7,
-    "name": "1",
-    "phone": "13433333333",
-    "idCardNumber": "421222222222222222",
-    "education": "高中及以下",
-    "university": "1",
-    "major": "1",
-    "licenseNumber": "",
-    "experienceYears": 1,
-    "specialty": [
-      "焦虑抑郁"
-    ],
-    "reason": "1",
-    "bio": "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
-    "status": "REJECTED",
-    "createdAt": "2025-08-14T15:51:11.009445",
-    "reviewComment": "11"
-  }
-  consultantApplicationStatus.value = 'REJECTED'
-  console.log('设置完成，当前状态:', applicationStatus.value)
 }
 
 // 关闭申请状态详情
@@ -1091,11 +840,6 @@ function onAvatarLoadError(e, avatar) {
     }
   }
   
-  // 所有尝试都失败了，设置一个默认的占位符图片
-  if (e.target) {
-    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjVGNUY1Ii8+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNDAiIHI9IjE1IiBmaWxsPSIjQ0NDIi8+CjxwYXRoIGQ9Ik0yNSA3NUMyNSA2NS4yMjU0IDMzLjIyNTQgNTcgNDMgNTdINTdDNjYuNzc0NiA1NyA3NSA2NS4yMjU0IDc1IDc1VjgwSDI1Vjc1WiIgZmlsbD0iI0NDQyIvPgo8L3N2Zz4K'
-    e.target.style.opacity = '0.5'
-  }
 }
 
 // 头像加载成功处理
@@ -1196,7 +940,10 @@ async function saveUserInfo() {
   }
 
   // 验证地区
-  if (!userInfo.value.location) {
+  if ( !userInfo.value.location ||
+    userInfo.value.location === '请选择所在城市' ||
+    userInfo.value.location === '未知'
+  ) {
     uni.showToast({
       title: '请选择所在地区',
       icon: 'none'
@@ -1230,19 +977,12 @@ async function saveUserInfo() {
     const updateData = {
       name: userInfo.value.nickname,
       age: age,
-      gender: userInfo.value.gender === '男' ? 'MALE' : 
-              userInfo.value.gender === '女' ? 'FEMALE' : 'UNKNOWN',
+      gender: userInfo.value.gender === '女' ? 'FEMALE' : 'UNKNOWN',
       region: finalLocation,
-      avatar: userInfo.value.selectedAvatarFile || 
-              (userInfo.value.avatar ? apiUtils.extractAvatarFileName(userInfo.value.avatar.replace('http://127.0.0.1:8080/static/', '')) : 'default'),
+      avatar: userInfo.value.selectedAvatarFile,
       birthday: userInfo.value.birthday,
       hobby: userInfo.value.hobbies || ''
     }
-    
-    console.log('保存的头像文件名:', userInfo.value.selectedAvatarFile)
-    console.log('原始头像URL:', userInfo.value.avatar)
-    console.log('最终头像文件名:', updateData.avatar)
-    
     console.log('发送给后端的用户信息:', updateData)
     
     // 调用真实的更新API
@@ -1292,33 +1032,6 @@ async function saveUserInfo() {
       duration: 3000
     })
   }
-}
-
-// 修改密码
-function changePassword() {
-  uni.showToast({
-    title: '功能开发中，敬请期待',
-    icon: 'none',
-    duration: 2000
-  })
-}
-
-// 隐私设置
-function privacySettings() {
-  uni.showToast({
-    title: '功能开发中，敬请期待',
-    icon: 'none',
-    duration: 2000
-  })
-}
-
-// 账户安全
-function accountSecurity() {
-  uni.showToast({
-    title: '功能开发中，敬请期待',
-    icon: 'none',
-    duration: 2000
-  })
 }
 
 // 退出登录
@@ -1685,9 +1398,6 @@ async function submitCounselorApplication() {
     white-space: nowrap;
   align-items: flex-start;
 }
-.action-text {
-  white-space: nowrap;
-}
 
 .label {
   width: 180rpx;
@@ -1790,6 +1500,55 @@ async function submitCounselorApplication() {
   font-weight: 400;
 }
 
+/* 咨询方式和可用时间样式 */
+.consultation-methods-field {
+  flex: 1;
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  border: 1rpx solid #e8f4f8;
+}
+
+.consultation-methods-text {
+  font-size: 28rpx;
+  color: #1ba7d0;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.availability-field {
+  flex: 1;
+  background: #fff5f5;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  border: 1rpx solid #ffeaea;
+}
+
+.availability-text {
+  font-size: 28rpx;
+  color: #e74c3c;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* 咨询师信息标签 */
+.consultant-info-label {
+  color: #1ba7d0;
+  font-weight: 600;
+  position: relative;
+}
+
+.consultant-info-label::after {
+  content: '';
+  position: absolute;
+  bottom: -2rpx;
+  left: 0;
+  width: 100%;
+  height: 2rpx;
+  background: linear-gradient(135deg, #1ba7d0, #4bc3b2);
+  border-radius: 1rpx;
+}
+
 .textarea-field {
   flex: 1;
   min-height: 120rpx;
@@ -1847,22 +1606,22 @@ async function submitCounselorApplication() {
   display: flex;
   align-items: center;
   padding: 32rpx 48rpx;
-  background: #f8f9fa;
-  border: 1rpx solid #e9ecef;
+  background: #f8e6c2;
+  border: 1rpx solid #f0680d;
   border-radius: 12rpx;
   font-size: 32rpx; /* 更大字体 */
-  color: #333;
+  color: #f0680d;
   transition: all 0.2s;
+  transform: scale(0.98);
   font-weight: 500;
   width: 100%;
   box-sizing: border-box;
 }
-
-.action-btn:active {
-  background: #e9ecef;
-  transform: scale(0.98);
+.status-btn{
+  background: rgba(255, 193, 7, 0.1);
+  border-color: #ffc107;
+  color: #ffc107;
 }
-
 .logout-btn {
   background: rgba(174, 220, 170, 0.2);
   border-color: #aedcaa;
@@ -1895,7 +1654,10 @@ async function submitCounselorApplication() {
   font-weight: 600;
   letter-spacing: 1rpx;
   font-size: 32rpx;
+  white-space: nowrap;
+  
 }
+
 
 /* 底部导航栏样式 */
 .bottom-nav {
@@ -1954,7 +1716,7 @@ async function submitCounselorApplication() {
   height: 100%;
   background: linear-gradient(135deg, #ec407a, #ab47bc);
   border-radius: 4rpx;
-  transition: width 0.1s ease;
+  transition: width 0.2s ease;
 }
 
 .loading-logo {
@@ -2558,7 +2320,8 @@ async function submitCounselorApplication() {
 }
 
 .status-indicator.no-application {
-  background-color: #6c757d;
+  background-color: transparent;
+  color: #e6b200; /* 与主色调一致 */
 }
 
 .review-section {

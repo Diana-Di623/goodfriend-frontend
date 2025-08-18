@@ -105,6 +105,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { testAPI } from '@/utils/api.js'
 
 const currentQuestion = ref(0)
 const answers = ref({})
@@ -306,10 +307,21 @@ function saveResult() {
     uni.setStorageSync('testDataLoginTime', currentLoginTime)
   }
   
-  uni.showToast({
-    title: '结果已保存',
-    icon: 'success',
-    duration: 2000
+  testAPI.postSaveTestResult({
+    testName: 'SDS',
+    score: standardScore.value
+  }).then(() => {
+    uni.showToast({
+      title: '结果已保存',
+      icon: 'success',
+      duration: 1000
+    })
+  }).catch(() => {
+    uni.showToast({
+      title: '保存失败',
+      icon: 'none',
+      duration: 1000
+    })
   })
   
   setTimeout(() => {

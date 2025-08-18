@@ -83,7 +83,7 @@
 
       <!-- 登录按钮 -->
       <button class="login-btn" @click="handleLogin">
-        {{ loginType === 'user' ? '立即登录' : '咨询师登录' }}
+        {{ loginType === 'user' ? '用户登录' : '咨询师登录' }}
       </button>
 
       <!-- 其他登录方式 -->
@@ -103,7 +103,8 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { userAPI } from '@/utils/api.js'
+import { userAPI,BASE_URL } from '@/utils/api.js'
+import { goBrowse } from '@/utils/page-turning.js'
 
 // 登录类型
 const loginType = ref('user') // 'user' 或 'counselor'
@@ -143,12 +144,7 @@ const getCodeButtonText = computed(() => {
   return '获取验证码'
 })
 
-// 先逛一逛，跳转到首页
-function goBrowse() {
-  uni.reLaunch({
-    url: '/pages/index/index'
-  })
-}
+
 
 // 切换登录类型
 function switchLoginType(type) {
@@ -301,7 +297,7 @@ async function performLogin() {
       const userInfo = {
         phone: phoneNumber.value,
         nickname: '用户' + phoneNumber.value.slice(-4),
-        avatar: 'http://127.0.0.1:8080/static/user/avatars/default.jpg',
+        avatar: `${BASE_URL}/static/user/avatars/default.jpg`,
         loginTime: new Date().toISOString(),
         userType: loginType.value,
         token: token

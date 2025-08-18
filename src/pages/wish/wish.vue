@@ -10,11 +10,6 @@
       </view>
       <image class="loading-logo" src="/static/logo.png" mode="aspectFit" />
       <text class="loading-title">好朋友心理</text>
-      <view class="loading-spinner">
-        <view class="dot"></view>
-        <view class="dot"></view>
-        <view class="dot"></view>
-      </view>
       <text class="loading-text">{{ loadingText }}</text>
     </view>
 
@@ -185,6 +180,8 @@
 import { ref, onMounted } from 'vue'
 import { onShow, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 import { storageUtils, wishAPI } from '@/utils/api.js'
+import {unreadMessageCount }from '@/utils/constants.js'
+import { showLoadingWithProgress,isPageLoading, progressBarWidth, loadingText } from '@/utils/page-turning.js'
 
 // 数据定义
 const comments = ref([])
@@ -195,35 +192,11 @@ const isLoading = ref(false)
 const page = ref(1)
 const hasMore = ref(true)
 const isAnonymous = ref(false) // 匿名发布状态
-const isPageLoading = ref(false) // 全局页面加载状态
-const progressBarWidth = ref(0) // 加载进度条宽度百分比
-const loadingText = ref('加载中...') // 加载文本
-
 // 进度条定时器
 let progressTimer = null
 // 匿名切换方法
 function toggleAnonymous() {
   isAnonymous.value = !isAnonymous.value
-}
-
-// 封装全局 loading 动画启动
-function showLoadingWithProgress(duration = 500, text = '加载中...') {
-  isPageLoading.value = true
-  progressBarWidth.value = 0
-  loadingText.value = text
-  if (progressTimer) clearInterval(progressTimer)
-  setTimeout(() => {
-    let start = Date.now()
-    progressTimer = setInterval(() => {
-      const elapsed = Date.now() - start
-      let percent = Math.min(100, (elapsed / duration) * 100)
-      progressBarWidth.value = percent
-      if (percent >= 100) {
-        clearInterval(progressTimer)
-        isPageLoading.value = false
-      }
-    }, 16)
-  }, 30)
 }
 
 // 初始化默认数据
@@ -569,23 +542,6 @@ onReachBottom(() => {
   color: transparent;
   margin-bottom: 48rpx;
 }
-
-.loading-spinner {
-  display: flex;
-  gap: 8rpx;
-  margin-bottom: 24rpx;
-}
-
-.loading-spinner .dot {
-  width: 12rpx;
-  height: 12rpx;
-  background: #ec407a;
-  border-radius: 50%;
-  animation: loading-bounce 1.4s ease-in-out infinite both;
-}
-
-.loading-spinner .dot:nth-child(1) { animation-delay: -0.32s; }
-.loading-spinner .dot:nth-child(2) { animation-delay: -0.16s; }
 
 @keyframes loading-bounce {
   0%, 80%, 100% { 

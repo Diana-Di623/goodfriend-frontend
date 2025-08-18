@@ -1,3 +1,4 @@
+
 <template>
   <view class="test-page">
     <!-- 顶部导航 -->
@@ -95,9 +96,13 @@
           </view>
         </view>
         <view class="result-actions">
-          <button class="btn btn-secondary" @click="retakeTest">重新测评</button>
-          <button class="btn btn-primary" @click="saveResult">保存结果</button>
-        </view>
+            <button class="btn btn-secondary" @click="retakeTest">重新测评</button>
+            <button
+              class="btn btn-primary"
+              @click="saveResult"
+              :disabled="saving"
+            >保存结果</button>
+          </view>
       </view>
     </view>
   </view>
@@ -105,12 +110,14 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { testAPI } from '@/utils/api.js'
 
 const currentQuestion = ref(0)
 const answers = ref({})
 const showResult = ref(false)
 const rawScore = ref(0)
 const standardScore = ref(0)
+const saving = ref(false) // 新增：保存中状态
 
 // 答题选项
 const options = [
@@ -283,6 +290,8 @@ function retakeTest() {
 }
 
 function saveResult() {
+  if (saving.value) return // 防止重复点击
+  saving.value = true
   // 保存测评结果到本地
   const result = {
     testType: 'SAS',
@@ -304,11 +313,22 @@ function saveResult() {
   if (currentLoginTime) {
     uni.setStorageSync('testDataLoginTime', currentLoginTime)
   }
-  
-  uni.showToast({
-    title: '结果已保存',
-    icon: 'success',
-    duration: 2000
+  // 只传 testName 和 score 给后端
+  testAPI.postSaveTestResult({
+    testName: 'SAS',
+    score: standardScore.value
+  }).then(() => {
+    uni.showToast({
+      title: '结果已保存',
+      icon: 'success',
+      duration: 1000
+    })
+  }).catch(() => {
+    uni.showToast({
+      title: '保存失败',
+      icon: 'none',
+      duration: 1000
+    })
   })
   
   setTimeout(() => {

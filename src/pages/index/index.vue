@@ -34,7 +34,7 @@
         </view>
         <view class="counselor-scroll-with-hotline">
           <view class="counselor-container">
-            <view v-for="(counselor, idx) in visibleCounselors" :key="idx" class="counselor-card" @click="handleCounselorClick(counselor)">
+            <view v-for="(counselor, idx) in visibleCounselors" :key="counselor.id || idx" class="counselor-card" @click="handleCounselorClick(counselor)">
               <image class="counselor-avatar" :src="counselor.avatar" />
               <view class="counselor-info">
                 <view class="counselor-name">{{ counselor.name }} <text class="level">{{ counselor.level }}</text></view>
@@ -111,7 +111,7 @@
 
     <!-- 底部导航栏 -->
     <view class="bottom-nav">
-      <view class="nav-item" @click="goHome">
+      <view class="nav-item">
         <text class="nav-icon">🏠</text>
         <text class="nav-label">首页</text>
       </view>
@@ -125,6 +125,10 @@
       <view class="nav-item" @click="goTestResults">
         <text class="nav-icon">📊</text>
         <text class="nav-label">测评结果</text>
+      </view>
+      <view class="nav-item" @click="goMyAppointments">
+        <text class="nav-icon">📅</text>
+        <text class="nav-label">我的预约</text>
       </view>
       <view class="nav-item" @click="goProfile">
         <text class="nav-icon">👤</text>
@@ -167,22 +171,19 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { counselorAPI,BASE_URL } from '@/utils/api.js'
 import { checkAndGuideUser } from '@/utils/user.js'
+import {unreadMessageCount }from '@/utils/constants.js'
+import { goMyAppointments,handleWishClick,goProfile,showLoadingWithProgress,goTestResults,isPageLoading,progressBarWidth,loadingText} from '@/utils/page-turning.js'
 
 const currentSlogan = ref(0)
-const hasNewMessage = ref(true)
-const unreadMessageCount = ref(15) // 未读消息数量
 const isRefreshing = ref(false)
-const scrollTop = ref(0) // 竖向滚动位置
-const currentPage = ref(0) // 当前页
 const showLoginModal = ref(false) // 默认不显示登录弹窗
 const termsAccepted = ref(false) // 用户协议同意状态
 const isLoggedIn = ref(false) // 用户登录状态
 const counselorIndex = ref(0) // 当前显示的咨询师起始索引
 const currentUserInfo = ref({}) // 当前用户信息
-const isPageLoading = ref(true) // 全局页面加载状态
-const progressBarWidth = ref(0) // 加载进度条宽度百分比
-const loadingText = ref('加载中...') // 加载文本
+
 
 const slogans = [
   '每个情绪都值得被倾听',
@@ -196,116 +197,7 @@ const slogans = [
   '让心灵不再孤单'
 ]
 
-const counselors = [
-  {
-    name: '牢陈头',
-    level: '低级咨询师',
-    specialty: '焦虑抑郁',
-    gender: '男',
-    location: '连州',
-    rating: 0.1,
-    avatar: '/static/logo.png'
-  },
-  {
-    name: '王明轩',
-    level: '资深咨询师',
-    specialty: '情感关系',
-    gender: '男',
-    location: '上海',
-    rating: 4.8,
-    avatar: '/static/logo.png'
-  },
-  {
-    name: '张雨萌',
-    level: '专家咨询师',
-    specialty: '青少年心理',
-    gender: '女',
-    location: '广州',
-    rating: 5.0,
-    avatar: '/static/logo.png'
-  },
-  {
-    name: '李心怡',
-    level: '高级咨询师',
-    specialty: '家庭治疗',
-    gender: '女',
-    location: '北京',
-    rating: 4.9,
-    avatar: '/static/logo.png'
-  },
-  {
-    name: '陈志强',
-    level: '资深咨询师',
-    specialty: '职场压力',
-    gender: '男',
-    location: '深圳',
-    rating: 4.7,
-    avatar: '/static/logo.png'
-  },
-  {
-    name: '赵美丽',
-    level: '专家咨询师',
-    specialty: '情绪管理',
-    gender: '女',
-    location: '杭州',
-    rating: 4.8,
-    avatar: '/static/logo.png'
-  },
-  {
-    name: '刘建国',
-    level: '高级咨询师',
-    specialty: '婚姻咨询',
-    gender: '男',
-    location: '成都',
-    rating: 4.6,
-    avatar: '/static/logo.png'
-  },
-  {
-    name: '周小雅',
-    level: '资深咨询师',
-    specialty: '创伤治疗',
-    gender: '女',
-    location: '武汉',
-    rating: 4.9,
-    avatar: '/static/logo.png'
-  },
-  {
-    name: '马天宇',
-    level: '专家咨询师',
-    specialty: '认知行为',
-    gender: '男',
-    location: '西安',
-    rating: 4.8,
-    avatar: '/static/logo.png'
-  },
-  {
-    name: '孙丽华',
-    level: '高级咨询师',
-    specialty: '亲子关系',
-    gender: '女',
-    location: '南京',
-    rating: 4.7,
-    avatar: '/static/logo.png'
-  },
-  {
-    name: '胡晓明',
-    level: '资深咨询师',
-    specialty: '强迫症',
-    gender: '男',
-    location: '重庆',
-    rating: 4.8,
-    avatar: '/static/logo.png'
-  },
-  {
-    name: '林静雯',
-    level: '专家咨询师',
-    specialty: '睡眠障碍',
-    gender: '女',
-    location: '厦门',
-    rating: 4.9,
-    avatar: '/static/logo.png'
-  }
-]
+const counselors = ref([])
 
 const articles = [
   '焦虑时试试478呼吸法',
@@ -315,11 +207,13 @@ const articles = [
 
 // 计算属性：获取当前显示的6个咨询师
 const visibleCounselors = computed(() => {
+  if (!counselors.value || counselors.value.length === 0) return []
+  
   const startIndex = counselorIndex.value
   const result = []
   for (let i = 0; i < 6; i++) {
-    const index = (startIndex + i) % counselors.length
-    result.push(counselors[index])
+    const index = (startIndex + i) % counselors.value.length
+    result.push(counselors.value[index])
   }
   return result
 })
@@ -333,27 +227,8 @@ let interval = null
 let scrollInterval = null
 let progressTimer = null
 
-// 封装全局 loading 动画启动
-function showLoadingWithProgress(duration = 500, text = '加载中...') {
-  isPageLoading.value = true
-  progressBarWidth.value = 0
-  loadingText.value = text
-  if (progressTimer) clearInterval(progressTimer)
-  setTimeout(() => {
-    let start = Date.now()
-    progressTimer = setInterval(() => {
-      const elapsed = Date.now() - start
-      let percent = Math.min(100, (elapsed / duration) * 100)
-      progressBarWidth.value = percent
-      if (percent >= 100) {
-        clearInterval(progressTimer)
-        isPageLoading.value = false
-      }
-    }, 16)
-  }, 30)
-}
 
-onMounted(() => {
+onMounted(async () => {
   // 检查是否是从其他页面返回，避免重复加载
   const skipLoading = uni.getStorageSync('skipHomeLoading')
   if (skipLoading) {
@@ -379,9 +254,34 @@ onMounted(() => {
     currentSlogan.value = (currentSlogan.value + 1) % slogans.length
   }, 3000)
   
-  // 咨询师列表自动切换（每4秒切换到下一组6个咨询师）
+  //加载咨询师
+  try {
+    const res = await counselorAPI.getCounselorList()
+    console.log('咨询师API响应:', res)
+    
+    if (res && Array.isArray(res)) {
+      // 处理咨询师数据，转换为前端需要的格式
+      counselors.value = res.map(item => ({
+        id: item.id,
+        name: item.name,
+        level: item.level || '咨询师',
+        specialty: Array.isArray(item.specialty) ? item.specialty.join('、') : item.specialty || '心理咨询',
+        gender: item.gender === 'UNKNOWN' ? '未知' : (item.gender === 'MALE' ? '男' : item.gender === 'FEMALE' ? '女' : item.gender),
+        location: item.location || '未知',
+        rating: item.rating || 0,
+        avatar: item.avatar ? `${BASE_URL}/static/${item.avatar}` : '/static/logo.png'
+      }))
+      console.log('处理后的咨询师数据:', counselors.value)
+    }
+  } catch (error) {
+    console.error('获取咨询师列表失败:', error)
+  }
+  
+  // 咨询师列表自动切换（只有咨询师超过6人时才滚动）
   scrollInterval = setInterval(() => {
-    counselorIndex.value = (counselorIndex.value + 6) % counselors.length
+    if (counselors.value && counselors.value.length > 6) {
+      counselorIndex.value = (counselorIndex.value + 6) % counselors.value.length
+    }
   }, 4000)
 })
 
@@ -398,104 +298,6 @@ function handleRefresh() {
   }, 1000)
 }
 
-
-// 首页导航 
-function goHome() {
-  // 已经在首页，只需要滚动到顶部
-  uni.pageScrollTo({
-    scrollTop: 0,
-    duration: 300
-  })
-}
-
-function goProfile() {
-  // 检查是否已登录
-  const token = uni.getStorageSync('token')
-  showLoadingWithProgress(1200, '正在打开个人中心...')
-  setTimeout(() => {
-    if (!token) {
-      // 未登录，跳转到登录页面
-      uni.navigateTo({
-        url: '/pages/login/login',
-        // 不再手动关闭 loading，由动画控制
-      })
-      return
-    }
-    // 已登录，直接跳转到个人资料页面
-    uni.navigateTo({
-      url: '/pages/profile/profile',
-    })
-  }, 500)
-}
-
-// 退出登录
-function logout() {
-  uni.showModal({
-    title: '确认退出',
-    content: '确定要退出登录吗？',
-    success: (res) => {
-      if (res.confirm) {
-        isLoggedIn.value = false
-        uni.removeStorageSync('token')
-        uni.removeStorageSync('userInfo')
-        uni.showToast({
-          title: '已退出登录',
-          icon: 'success',
-          duration: 1500
-        })
-      }
-    }
-  })
-}
-function goTest(testType) {
-  // 根据测评类型跳转到对应页面
-  const testRoutes = {
-    'SDS': '/pages/test/sds', 
-    'SAS': '/pages/test/sas'
-  }
-  const route = testRoutes[testType]
-  const testNames = {
-    'SDS': '抑郁自评量表',
-    'SAS': '焦虑自评量表'
-  }
-  showLoadingWithProgress(1200, `正在打开${testNames[testType]}...`)
-  setTimeout(() => {
-    if (route) {
-      uni.navigateTo({
-        url: route,
-        // 不再手动关闭 loading，由动画控制
-        fail: () => {
-          isPageLoading.value = false
-          // 如果页面不存在，显示开发中提示
-          uni.showToast({
-            title: `${testType}测评开发中，敬请期待`,
-            icon: 'none',
-            duration: 2000
-          })
-        }
-      })
-    } else {
-      isPageLoading.value = false
-      uni.showToast({
-        title: '测评类型错误',
-        icon: 'none',
-        duration: 1500
-      })
-    }
-  }, 500)
-}
-
-// 检查登录状态的通用函数
-function checkLoginAndShowModal(action) {
-  // 检查是否有有效的登录token
-  const token = uni.getStorageSync('token')
-  if (!token || !isLoggedIn.value) {
-    showLoginModal.value = true
-    return false
-  }
-  return true
-}
-
 // 咨询师点击处理
 function handleCounselorClick(counselor) {
   if (checkLoginAndShowModal('咨询师服务')) {
@@ -504,7 +306,7 @@ function handleCounselorClick(counselor) {
     setTimeout(() => {
       // 跳转到咨询师详情页面
       uni.navigateTo({
-        url: `/pages/counselor/detail?counselorId=${counselor.name}&name=${counselor.name}`
+        url: `/pages/counselor/detail?counselorId=${counselor.id}&name=${counselor.name}`
       })
     }, 1000)
   }
@@ -534,41 +336,20 @@ function handleArticleClick(article) {
   })
 }
 
-// 心愿心语点击处理
-function handleWishClick() {
-  checkAndGuideUser('心愿心语功能', () => {
-    showLoadingWithProgress(1200, '正在打开心愿心语...')
-    setTimeout(() => {
-      unreadMessageCount.value = 0
-      uni.navigateTo({
-        url: '/pages/wish/wish'
-      })
-    }, 500)
-  })
-}
-
-// 测评结果点击处理
-function goTestResults() {
-  checkAndGuideUser('测评结果功能', () => {
-    showLoadingWithProgress(1200, '正在查看测评结果...')
-    // 等待进度条动画结束后再跳转
-    const unwatch = watch(isPageLoading, (val) => {
-      if (!val) {
-        unwatch()
-        uni.navigateTo({
-          url: '/pages/test/results',
-        })
-      }
-    })
-  })
-}
-
 // 登录相关函数
 function toggleTerms() {
   termsAccepted.value = !termsAccepted.value
 }
-
-// 跳转到登录页面
+// 检查登录状态的通用函数
+function checkLoginAndShowModal(action) {
+  // 检查是否有有效的登录token
+  const token = uni.getStorageSync('token')
+  if (!token || !isLoggedIn.value) {
+    showLoginModal.value = true
+    return false
+  }
+  return true
+}
 function goToLoginPage() {
   if (!termsAccepted.value) {
     uni.showToast({
@@ -578,20 +359,11 @@ function goToLoginPage() {
     })
     return
   }
-  
-  // 显示进度条加载动画
-  showLoadingWithProgress(800, '正在打开登录页面...')
-  setTimeout(() => {
-    uni.navigateTo({
-      url: '/pages/login/login',
-      success: () => {
-        // 跳转成功后关闭当前登录弹窗
-        showLoginModal.value = false
-      }
-    })
-  }, 800)
+  // 跳转到登录页面
+  uni.navigateTo({
+    url: '/pages/login/login'
+  })
 }
-
 // 关闭登录弹窗
 function closeLogin() {
   showLoginModal.value = false

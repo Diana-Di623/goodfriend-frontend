@@ -215,7 +215,8 @@
         </view>
       </view>
     </view>
-    <!-- 底部功能栏（合并唯一一个） -->
+  
+    <!-- 底部导航栏 -->
     <view class="bottom-nav">
       <view class="nav-item" @click="goHome">
         <text class="nav-icon">🏠</text>
@@ -228,9 +229,13 @@
           {{ unreadMessageCount > 99 ? '99+' : unreadMessageCount }}
         </view>
       </view>
-      <view class="nav-item active">
+      <view class="nav-item">
         <text class="nav-icon">📊</text>
         <text class="nav-label">测评结果</text>
+      </view>
+      <view class="nav-item" @click="goMyAppointments">
+        <text class="nav-icon">📅</text>
+        <text class="nav-label">我的预约</text>
       </view>
       <view class="nav-item" @click="goProfile">
         <text class="nav-icon">👤</text>
@@ -243,18 +248,11 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-
+import { testAPI } from '@/utils/api.js'
+import {unreadMessageCount }from '@/utils/constants.js'
+import {goHome,goProfile,handleWishClick, progressBarWidth,goMyAppointments,isPageLoading,loadingText} from '@/utils/page-turning.js'
 // 历史记录数据 - 从localStorage获取实际测评记录
 const historyRecords = ref([])
-
-// 未读消息数量
-const unreadMessageCount = ref(15)
-
-// 进度条相关
-const isPageLoading = ref(false)
-const progressBarWidth = ref(0)
-const loadingText = ref('加载中...')
-
 // 最新测评结果
 const latestSasResult = ref(null)
 const latestSdsResult = ref(null)
@@ -263,35 +261,12 @@ const latestSdsResult = ref(null)
 // 进度条定时器
 let progressTimer = null
 
-// 封装全局 loading 动画启动
-function showLoadingWithProgress(duration = 500, text = '加载中...') {
-  isPageLoading.value = true
-  progressBarWidth.value = 0
-  loadingText.value = text
-  if (progressTimer) clearInterval(progressTimer)
-  setTimeout(() => {
-    let start = Date.now()
-    progressTimer = setInterval(() => {
-      const elapsed = Date.now() - start
-      let percent = Math.min(100, (elapsed / duration) * 100)
-      progressBarWidth.value = percent
-      if (percent >= 100) {
-        clearInterval(progressTimer)
-        isPageLoading.value = false
-      }
-    }, 16)
-  }, 30)
-}
-
 // 获取专业建议
 function getProfessionalAdvice() {
   const sasScore = latestSasResult.value?.score || 0
   const sdsScore = latestSdsResult.value?.score || 0
   const sasLevel = latestSasResult.value?.level || ''
   const sdsLevel = latestSdsResult.value?.level || ''
-  
-  console.log('生成专业建议:', { sasScore, sdsScore, sasLevel, sdsLevel })
-  
   // 如果没有测评数据
   if (!latestSasResult.value && !latestSdsResult.value) {
     return '建议您完成心理测评，以便我们为您提供更精准的专业建议和心理健康指导。'
@@ -329,59 +304,59 @@ function getProfessionalAdvice() {
   return advice
 }
 
-// 加载历史记录
-function loadHistoryRecords() {
+async function loadHistoryRecords() {
   console.log('开始加载历史记录...')
   try {
-    const stored = uni.getStorageSync('testResults')
-    console.log('从存储中获取的数据:', stored)
-    
-    if (stored && Array.isArray(stored)) {
-      // 按时间倒序排列，最新的在前面
-      const sortedResults = stored.sort((a, b) => {
-        const dateA = new Date(a.date)
-        const dateB = new Date(b.date)
-        return dateB - dateA
+    const res = await testAPI.getTestResults()
+    console.log('后端返回的数据:', res)
+    if (!Array.isArray(res) || res.length === 0) {
+      uni.showToast({
+        title: '暂无测评结果',
+        icon: 'none'
       })
-      
-      // 转换数据格式，兼容不同的保存格式
-      historyRecords.value = sortedResults.map((item, index) => {
-        // 处理日期时间格式
-        const date = new Date(item.date)
-        const dateStr = date.toISOString().split('T')[0]
-        const timeStr = date.toTimeString().split(' ')[0].slice(0, 5)
-        
-        // 统一数据格式
-        const normalizedItem = {
-          id: item.id || Date.now() + index,
-          date: dateStr,
-          time: timeStr,
-          // 兼容不同的字段名
-          type: item.type || item.testType || 'SAS',
-          score: item.score || item.standardScore || item.rawScore || 0,
-          level: item.level || '未知',
-          typeName: (item.type || item.testType) === 'SAS' ? '焦虑自评量表' : '抑郁自评量表',
-        }
-        
-        console.log('转换后的记录:', normalizedItem)
-        return normalizedItem
-      })
-      
-      console.log('处理后的历史记录:', historyRecords.value)
-      
-      // 更新最新结果显示
-      updateLatestResults(historyRecords.value)
-    } else {
-      console.log('没有找到历史记录数据')
       historyRecords.value = []
       latestSasResult.value = null
       latestSdsResult.value = null
+      return
     }
-  } catch (error) {
-    console.error('加载历史记录失败:', error)
-    historyRecords.value = []
-    latestSasResult.value = null
-    latestSdsResult.value = null
+    if (Array.isArray(res)) {
+      // 按时间倒序排列
+      const sortedResults = res.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      historyRecords.value = sortedResults.map((item, index) => {
+        const dateObj = new Date(item.createdAt)
+        const dateStr = dateObj.toISOString().split('T')[0]
+        const timeStr = dateObj.toTimeString().split(' ')[0].slice(0, 5)
+        // 本地推断level
+        let level = ''
+        if (item.testName === 'SAS') {
+          if (item.score < 50) level = '正常'
+          else if (item.score < 60) level = '轻度焦虑'
+          else if (item.score < 70) level = '中度焦虑'
+          else level = '重度焦虑'
+        } else if (item.testName === 'SDS') {
+          if (item.score < 53) level = '正常'
+          else if (item.score < 63) level = '轻度抑郁'
+          else if (item.score < 73) level = '中度抑郁'
+          else level = '重度抑郁'
+        }
+        const typeName = item.testName === 'SAS' ? '焦虑自评量表' : '抑郁自评量表'
+        return {
+          id: item.id,
+          date: dateStr,
+          time: timeStr,
+          type: item.testName || 'SAS',
+          score: item.score || 0,
+          level,
+          typeName
+        }
+      })
+      console.log('处理后的历史记录:', historyRecords.value)
+      // 更新最新测评结果
+      updateLatestResults(historyRecords.value)
+    }
+  } catch (e) {
+    console.error('加载历史记录失败', e)
+    uni.showToast({ title: '加载历史记录失败', icon: 'none' })
   }
 }
 
@@ -469,7 +444,6 @@ function showClearDialog() {
 
 // 获取分数颜色类名
 function getScoreColorClass(score, type) {
-  console.log('获取分数颜色:', { score, type })
   if (type === "SAS") {
     // SAS焦虑自评量表评分标准
     if (score < 50) return "score-green"    // 正常
@@ -513,71 +487,10 @@ function viewDetail(record) {
     showCancel: false
   })
 }
-
-// 导航方法
-function goHome() {
-  showLoadingWithProgress(800, '正在跳转首页...')
-  setTimeout(() => {
-    // 设置标志，避免首页重复加载
-    uni.setStorageSync('skipHomeLoading', true)
-    uni.reLaunch({ url: '/pages/index/index' })
-  }, 800)
-}
-
-function handleWishClick() {
-  showLoadingWithProgress(800, '正在打开心愿心语...')
-  setTimeout(() => {
-    uni.navigateTo({ url: '/pages/wish/wish' })
-  }, 800)
-}
-
-function goProfile() {
-  showLoadingWithProgress(800, '正在打开个人中心...')
-  setTimeout(() => {
-    uni.navigateTo({ url: '/pages/profile/profile' })
-  }, 800)
-}
-
 onMounted(() => {
   // 页面加载时获取实际的历史记录
   loadHistoryRecords()
-  
-  // 开发调试：如果没有数据，添加测试数据
-  setTimeout(() => {
-    if (historyRecords.value.length === 0) {
-      console.log('没有测评数据，是否需要添加测试数据？')
-      addTestDataIfNeeded()
-    }
-  }, 500)
 })
-
-// 添加测试数据（仅用于调试）
-function addTestDataIfNeeded() {
-  try {
-    const testData = [
-      {
-        testType: 'SAS',
-        standardScore: 45,
-        level: '轻度焦虑',
-        date: new Date().toISOString(),
-        rawScore: 36
-      },
-      {
-        testType: 'SDS', 
-        standardScore: 58,
-        level: '轻度抑郁',
-        date: new Date(Date.now() - 3600000).toISOString(), // 1小时前
-        rawScore: 46
-      }
-    ]
-    
-    console.log('正在添加测试数据...')
-    uni.setStorageSync('testResults', testData)
-    loadHistoryRecords() // 重新加载数据
-  } catch (error) {
-    console.error('添加测试数据失败:', error)
-  }
-}
 
 // 页面显示时重新加载数据（从其他页面返回时）
 onShow(() => {

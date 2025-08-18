@@ -1,6 +1,8 @@
 /**
- * 个人信息相关常量
+常量
  */
+import {ref}from 'vue'
+export const unreadMessageCount = ref(15)
 
 // 性别选项 - 提供男女和未知选项来保护隐私
 export const GENDER_OPTIONS = [

@@ -1,59 +1,10 @@
 // API 工具函数
-const BASE_URL = 'http://127.0.0.1:8080'
-
-// 头像文件名提取函数：从完整路径中提取纯文件名（不带路径和扩展名）
-function extractAvatarFileName(avatarPath) {
-  if (!avatarPath) return ''
-  
-  console.log('=== 提取头像文件名 ===')
-  console.log('原始路径:', avatarPath)
-  
-  // 移除路径前缀（如 "user/avatars/"、"consultant/avatars/"等）
-  let fileName = avatarPath.replace(/^.*\//, '')
-  console.log('移除路径后:', fileName)
-  
-  // 移除扩展名（如 .jpg、.png、.jpeg等）
-  let pureFileName = fileName.replace(/\.(jpg|png|jpeg|gif|webp)$/i, '')
-  console.log('移除扩展名后:', pureFileName)
-  
-  // 如果结果为空或无效，返回原始文件名
-  if (!pureFileName || pureFileName === fileName) {
-    // 可能没有扩展名，直接返回文件名
-    pureFileName = fileName
-  }
-  
-  console.log('最终文件名:', pureFileName)
-  return pureFileName
-}
-
-// 辅助函数：处理头像URL
-// 添加智能头像URL处理函数
-function getSmartAvatarUrl(avatarPath) {
-  if (!avatarPath) return ''
-  
-  const possiblePaths = []
-  
-  if (avatarPath.startsWith('consultant/avatars/')) {
-    possiblePaths.push(BASE_URL + '/static/' + avatarPath) // http://127.0.0.1:8080/static/consultant/avatars/3.png
-  }
-  
-  console.log('=== 智能头像URL处理 ===')
-  console.log('原始路径:', avatarPath)
-  console.log('尝试的路径格式:', possiblePaths)
-  
-  // 返回可能的路径
-  return possiblePaths[0] || processAvatarUrl(avatarPath)
-}
+export const BASE_URL = 'http://127.0.0.1:8080'
 
 function processAvatarUrl(avatarPath) {
   if (!avatarPath) return ''
-  
-  console.log('=== 处理头像URL ===')
-  console.log('原始路径:', avatarPath)
-  
   // 如果已经是完整URL，直接返回
   if (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')) {
-    console.log('检测到完整URL，直接返回')
     return avatarPath
   }
   const imageExtensions = ['.png', '.jpg']
@@ -103,7 +54,51 @@ function smartNavigate(options) {
   })
 }
 
-// 通用请求函数
+function no_head_request(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const token = uni.getStorageSync('token') || ''
+    const requestConfig = {
+      url: BASE_URL + url,
+      method: options.method || 'GET',
+      data: options.data || {},
+    }
+
+
+    // 打印请求详细信息
+    console.log('=== API请求详情 ===')
+    console.log('完整URL:', requestConfig.url)
+    console.log('请求方法:', requestConfig.method)
+    console.log('Token信息:', token ? `Bearer ${token.substring(0, 20)}...` : '无Token')
+    console.log('请求数据:', JSON.stringify(requestConfig.data, null, 2))
+    console.log('==================')
+
+    uni.request({
+      ...requestConfig,
+      success: (res) => {
+        // 打印响应信息
+        console.log('=== API响应详情 ===')
+        console.log('响应状态码:', res.statusCode)
+        console.log('响应头:', JSON.stringify(res.header, null, 2))
+        console.log('响应数据:', JSON.stringify(res.data, null, 2))
+        console.log('==================')
+
+        if (res.statusCode === 200) {
+          resolve(res.data)
+        } else {
+          reject(res)
+        }
+      },
+      fail: (error) => {
+        // 打印错误信息
+        console.log('=== API请求失败 ===')
+        console.log('错误信息:', JSON.stringify(error, null, 2))
+        console.log('请求URL:', requestConfig.url)
+        console.log('==================')
+        reject(error)
+      }
+    })
+  })
+}
 function request(url, options = {}) {
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync('token') || ''
@@ -117,6 +112,7 @@ function request(url, options = {}) {
         ...options.header
       }
     }
+ 
     
     // 打印请求详细信息
     console.log('=== API请求详情 ===')
@@ -238,22 +234,40 @@ export const userAPI = {
     return request('/api/user/avatars', {
       method: 'GET'
     })
+  },
+  
+  // 创建预约
+  createAppointment(appointmentData) {
+    return request('/api/user/appointments', {
+      method: 'POST',
+      data: appointmentData
+    })
+  },
+  
+  // 获取用户预约列表
+  getUserAppointments() {
+    return request('/api/user/appointments', {
+      method: 'GET'
+    })
   }
 }
 
 // 测评相关API
 export const testAPI = {
-  // 提交测评结果
-  submitTest(testType, answers, score) {
-    return request('/test/submit', {
+  //保存测试结果
+  postSaveTestResult(testResult) {
+    return request('/api/user/tests', {
       method: 'POST',
-      data: { testType, answers, score }
+      data: testResult
+
     })
   },
   
   // 获取测评结果
-  getTestResults() {
-    return request('/test/results')
+  getTestResults( ) {
+    return request('/api/user/tests', {
+      method: 'GET',
+    })
   },
   
   // 获取测评历史
@@ -266,7 +280,9 @@ export const testAPI = {
 export const counselorAPI = {
   // 获取咨询师列表
   getCounselorList() {
-    return request('/counselor/list')
+    return no_head_request('/api/consultant/all',{
+      method: 'GET'
+    })
   },
   
   // 获取咨询师详情
@@ -418,7 +434,5 @@ export default {
   counselorAPI,
   storageUtils,
   processAvatarUrl,
-  getSmartAvatarUrl,
-  smartNavigate,
-  extractAvatarFileName
+  smartNavigate
 }

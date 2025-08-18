@@ -37,9 +37,9 @@
     <!-- 咨询师信息 -->
     <view class="profile-info">
       <view class="name-price">
-        <text class="name">{{ counselor.name || '咨询师' }}</text>
+        <text class="name">{{ counselor.name }}</text>
         <view class="price">
-          <text class="price-number">{{ counselor.price || 0 }}</text>
+          <text class="price-number">{{ counselor.price }}</text>
           <text class="price-unit">元/节起</text>
         </view>
       </view>
@@ -96,6 +96,35 @@
       </view>
       <view class="bio-content">
         <text class="bio-text">{{ counselor.bio }}</text>
+      </view>
+    </view>
+
+    <!-- 咨询方式 -->
+    <view v-if="counselor.consultationMethods && counselor.consultationMethods.length > 0" class="profile-section">
+      <view class="section-header">
+        <text class="section-title">咨询方式</text>
+      </view>
+      <view class="consultation-methods">
+        <view 
+          v-for="(method, index) in counselor.consultationMethods"
+          :key="index"
+          class="method-item"
+        >
+          <text class="method-text">{{ method }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 时间安排 -->
+    <view v-if="counselor.availability" class="profile-section">
+      <view class="section-header">
+        <text class="section-title">时间安排</text>
+      </view>
+      <view class="availability-content">
+        <view class="availability-item">
+          <text class="availability-icon">🕐</text>
+          <text class="availability-text">{{ counselor.availability }}</text>
+        </view>
       </view>
     </view>
 
@@ -228,889 +257,175 @@
 
     <!-- 底部占位 -->
     <view class="bottom-spacer"></view>
+
+    <!-- 预约模态框 -->
+    <view v-if="showAppointmentModal" class="appointment-modal-overlay" @click="cancelAppointment">
+      <view class="appointment-modal" @click.stop>
+        <view class="modal-header">
+          <text class="modal-title">预约咨询</text>
+          <text class="modal-close" @click="cancelAppointment">×</text>
+        </view>
+        
+        <view class="modal-content">
+          <view class="form-section">
+            <text class="form-label">开始时间</text>
+            <view class="datetime-row">
+              <picker mode="date" :value="appointmentData.startDate" @change="(e) => appointmentData.startDate = e.detail.value" class="date-picker">
+                <view class="picker-input">
+                  <text>{{ appointmentData.startDate || '选择咨询日期' }}</text>
+                </view>
+              </picker>
+              <picker mode="time" :value="appointmentData.startTime" @change="(e) => appointmentData.startTime = e.detail.value" class="time-picker">
+                <view class="picker-input">
+                  <text>{{ appointmentData.startTime || '选择开始时间' }}</text>
+                </view>
+              </picker>
+            </view>
+          </view>
+          
+          <view class="form-section">
+            <text class="form-label">咨询时长</text>
+            <picker 
+              mode="selector" 
+              :range="durationOptions.map(item => item.label)"
+              :value="durationOptions.findIndex(item => item.value === appointmentData.duration)"
+              @change="(e) => appointmentData.duration = durationOptions[e.detail.value].value"
+              class="duration-picker"
+            >
+              <view class="picker-input">
+                <text>{{ durationOptions.find(item => item.value === appointmentData.duration)?.label || '选择时长' }}</text>
+              </view>
+            </picker>
+          </view>
+          
+          <view v-if="counselor.availability" class="form-section">
+            <text class="form-label">咨询师工作时间</text>
+            <view class="availability-info">
+              <text class="availability-text">{{ counselor.availability }}</text>
+            </view>
+          </view>
+          
+          <view class="form-section">
+            <text class="form-label">备注</text>
+            <textarea 
+              v-model="appointmentData.note" 
+              class="note-input" 
+              placeholder="请输入预约备注（可选）"
+              maxlength="200"
+            ></textarea>
+          </view>
+        </view>
+        
+        <view class="modal-actions">
+          <button class="cancel-btn" @click="cancelAppointment">取消</button>
+          <button 
+            class="confirm-btn" 
+            @click="confirmAppointment"
+            :disabled="isSubmittingAppointment"
+          >
+            {{ isSubmittingAppointment ? '提交中...' : '确认预约' }}
+          </button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { counselorAPI, userAPI, BASE_URL } from '@/utils/api.js'
+import { goBack} from '@/utils/page-turning.js'
 
-// 咨询师详细数据库
-const counselorDatabase = {
-  '牢陈头': {
-    name: '牢陈头',
-    price: 150,
-    avatar: '/static/logo.png',
-    location: '连州·香江',
-    level: '助理咨询师',
-    specialty: '焦虑抑郁',
-    gender: '男',
-    rating: 0.1,
-    bio: '我是牢陈头，心理学专业毕业的新手咨询师。虽然经验不多，但我对心理咨询充满热情，希望能够帮助每一位来访者。我专注于焦虑和抑郁问题的处理，相信通过真诚的沟通和专业的方法，能够为大家提供有效的心理支持。',
-    credentials: ['心理学学士', '初级心理咨询师', '认知行为疗法培训'],
-    educationList: [
-      {
-        degree: '学士学位',
-        year: '2020-2024',
-        school: '连州大学',
-        major: '应用心理学'
-      }
-    ],
-    experienceList: [
-      {
-        company: '连州心理咨询中心',
-        duration: '2024年至今',
-        position: '实习咨询师',
-        description: '在督导老师指导下进行个体心理咨询，主要处理轻度焦虑和抑郁问题。'
-      }
-    ],
-    certificatesList: [
-      {
-        name: '心理咨询师基础培训合格证书',
-        issuer: '中科院心理所',
-        number: 'XL202400123',
-        date: '2024年6月'
-      },
-      {
-        name: '认知行为疗法培训证书',
-        issuer: '中国心理学会',
-        number: 'CBT202400045',
-        date: '2024年8月'
-      }
-    ],
-    stats: {
-      caseHours: 120,
-      experience: 1,
-      trainingHours: 80,
-      supervisionHours: 30
-    },
-    topics: [
-      { name: '焦虑症', count: 15 },
-      { name: '抑郁症', count: 8 },
-      { name: '学业压力', count: 12 },
-      { name: '人际关系', count: 5 },
-      { name: '情绪管理', count: 3 },
-      { name: '自我认知', count: 2 },
-      { name: '社交恐惧', count: 6 },
-      { name: '考试焦虑', count: 4 },
-      { name: '失眠问题', count: 3 },
-      { name: '拖延症', count: 2 },
-      { name: '注意力不集中', count: 3 },
-      { name: '适应困难', count: 2 }
-    ],
-    reviews: [
-      {
-        avatar: '小',
-        username: '小**',
-        condition: '焦虑症',
-        date: '2025/07/20',
-        content: '牢老师很有耐心，虽然经验不是很丰富，但是很认真负责，能感受到他的专业态度。',
-        expandable: false
-      },
-      {
-        avatar: '林',
-        username: '林**',
-        condition: '学业压力',
-        date: '2025/07/18',
-        content: '第一次咨询心理医生，牢老师很温和，让我感觉很安全，会继续咨询的。',
-        expandable: false
-      },
-      {
-        avatar: '陈',
-        username: '陈**',
-        condition: '社交恐惧',
-        date: '2025/07/15',
-        content: '牢老师给了我很多实用的建议，虽然改变需要时间...',
-        fullContent: '牢老师给了我很多实用的建议，虽然改变需要时间，但我已经看到了希望。在咨询过程中，他耐心地倾听我的困扰，帮助我分析社交恐惧的根源。通过认知行为疗法的技巧，我开始学会挑战自己的负面思维。虽然他还是新人咨询师，但他的专业态度和认真负责的精神让我很感动。',
-        expandable: true
-      },
-      {
-        avatar: '张',
-        username: '张**',
-        condition: '抑郁症',
-        date: '2025/07/12',
-        content: '感觉牢陈头老师经验确实不够，有些问题他好像也不太懂，建议还是找资深一点的咨询师比较好。',
-        expandable: false
-      },
-      {
-        avatar: '李',
-        username: '李**',
-        condition: '人际关系',
-        date: '2025/07/10',
-        content: '咨询了几次，感觉效果不明显，可能是刚入行的原因吧，专业度还有待提高。',
-        expandable: false
-      },
-      {
-        avatar: '王',
-        username: '王**',
-        condition: '焦虑症',
-        date: '2025/07/08',
-        content: '价格便宜但一分钱一分货，感觉就是在聊天...',
-        fullContent: '价格便宜但一分钱一分货，感觉就是在聊天，没有专业的治疗方案，浪费时间和金钱。作为一个助理咨询师，牢陈头老师确实缺乏经验，很多时候只是简单地重复我说的话，没有给出实质性的建议。而且经常出现专业知识不足的情况，有些心理学概念他自己都说不清楚。',
-        expandable: true
-      }
-    ]
-  },
-  '王明轩': {
-    name: '王明轩',
-    price: 280,
-    avatar: '/static/logo.png',
-    location: '上海·浦东',
-    level: '资深咨询师',
-    specialty: '情感关系',
-    gender: '男',
-    rating: 4.8,
-    bio: '我是王明轩，专注于情感关系咨询8年。拥有心理学硕士学位，是认证的婚姻家庭咨询师和EFT情感聚焦疗法师。我相信每段关系都有修复和成长的可能，致力于帮助夫妻和情侣重建亲密连接，解决情感困扰。通过专业的治疗技术和丰富的实践经验，我为来访者提供个性化的情感咨询服务。',
-    credentials: ['心理学硕士', '婚姻家庭咨询师', 'EFT情感聚焦疗法师'],
-    educationList: [
-      {
-        degree: '硕士学位',
-        year: '2014-2017',
-        school: '华东师范大学',
-        major: '应用心理学（临床方向）'
-      },
-      {
-        degree: '学士学位',
-        year: '2010-2014',
-        school: '上海交通大学',
-        major: '心理学'
-      }
-    ],
-    experienceList: [
-      {
-        company: '上海心灵家园心理咨询中心',
-        duration: '2020年至今',
-        position: '高级咨询师',
-        description: '专门从事婚姻情感咨询，擅长处理夫妻关系、情感创伤、亲密关系障碍等问题。'
-      },
-      {
-        company: '浦东心理健康中心',
-        duration: '2017-2020年',
-        position: '心理咨询师',
-        description: '提供个体和夫妻咨询服务，积累了丰富的情感咨询经验。'
-      }
-    ],
-    certificatesList: [
-      {
-        name: '国家二级心理咨询师',
-        issuer: '人力资源和社会保障部',
-        number: 'XL201700289',
-        date: '2017年5月'
-      },
-      {
-        name: 'EFT情感聚焦疗法师认证',
-        issuer: '国际EFT训练中心',
-        number: 'EFT201800156',
-        date: '2018年10月'
-      },
-      {
-        name: '婚姻家庭咨询师',
-        issuer: '中国心理卫生协会',
-        number: 'MFCC201900087',
-        date: '2019年3月'
-      }
-    ],
-    stats: {
-      caseHours: 2800,
-      experience: 8,
-      trainingHours: 500,
-      supervisionHours: 200
-    },
-    topics: [
-      { name: '婚姻关系', count: 180 },
-      { name: '情感困扰', count: 120 },
-      { name: '亲密关系', count: 95 },
-      { name: '分手挽回', count: 60 },
-      { name: '家庭冲突', count: 40 },
-      { name: '沟通技巧', count: 25 },
-      { name: '恋爱困惑', count: 55 },
-      { name: '情感创伤', count: 35 },
-      { name: '出轨问题', count: 30 },
-      { name: '性格不合', count: 45 },
-      { name: '信任危机', count: 38 },
-      { name: '情绪控制', count: 28 },
-      { name: '伴侣选择', count: 20 },
-      { name: '异地恋', count: 15 }
-    ],
-    reviews: [
-      {
-        avatar: '李',
-        username: '李**',
-        condition: '婚姻关系',
-        date: '2025/07/18',
-        content: '王老师非常专业，帮助我和爱人重新找到了沟通的方式，现在我们的关系好了很多。',
-        expandable: false
-      },
-      {
-        avatar: '张',
-        username: '张**',
-        condition: '情感困扰',
-        date: '2025/07/15',
-        content: '经过几次咨询，我对自己的情感模式有了更深的认识...',
-        fullContent: '经过几次咨询，我对自己的情感模式有了更深的认识，王老师的引导很到位。他运用EFT情感聚焦疗法，帮助我识别和理解自己在关系中的情感反应模式。通过角色扮演和情感体验练习，我逐渐学会了如何表达真实的情感需求，不再逃避或压抑自己的感受。这对我未来的恋爱关系有很大帮助。',
-        expandable: true
-      },
-      {
-        avatar: '刘',
-        username: '刘**',
-        condition: '分手挽回',
-        date: '2025/07/22',
-        content: '王老师帮我分析了分手的原因，虽然最终没有挽回，但我学会了如何更好地爱自己。',
-        expandable: false
-      },
-      {
-        avatar: '王',
-        username: '王**',
-        condition: '亲密关系',
-        date: '2025/07/16',
-        content: '很专业的咨询师，让我明白了什么是健康的亲密关系，受益匪浅。',
-        expandable: false
-      },
-      {
-        avatar: '赵',
-        username: '赵**',
-        condition: '出轨问题',
-        date: '2025/07/14',
-        content: '面对伴侣出轨，王老师帮助我冷静分析...',
-        fullContent: '面对伴侣出轨，王老师帮助我冷静分析，给了我很多实用的建议和情感支持。最初我情绪完全崩溃，王老师耐心地陪伴我度过了最困难的时期。他帮我理解背叛创伤的心理机制，教会我如何处理愤怒、悲伤和失望等复杂情感。通过几个月的咨询，我重新找回了内心的平静，也对未来的选择有了更清晰的认识。',
-        expandable: true
-      }
-    ]
-  },
-  '张雨萌': {
-    name: '张雨萌',
-    price: 320,
-    avatar: '/static/logo.png',
-    location: '广州·天河',
-    level: '专家咨询师',
-    specialty: '青少年心理',
-    gender: '女',
-    rating: 5.0,
-    bio: '我是张雨萌，从事青少年心理咨询工作12年，拥有心理学博士学位。我深入了解青少年的心理发展特点，擅长处理青春期各种心理问题。我相信每个青少年都有巨大的成长潜力，通过专业的心理治疗技术和温暖的陪伴，帮助他们度过人生中的重要阶段，建立健康的心理模式。',
-    credentials: ['心理学博士', '青少年心理咨询专家', '家庭治疗师'],
-    educationList: [
-      {
-        degree: '博士学位',
-        year: '2008-2012',
-        school: '中山大学',
-        major: '发展与教育心理学'
-      },
-      {
-        degree: '硕士学位',
-        year: '2006-2008',
-        school: '华南师范大学',
-        major: '应用心理学'
-      },
-      {
-        degree: '学士学位',
-        year: '2002-2006',
-        school: '暨南大学',
-        major: '心理学'
-      }
-    ],
-    experienceList: [
-      {
-        company: '广州市青少年心理健康中心',
-        duration: '2015年至今',
-        position: '首席心理专家',
-        description: '负责青少年心理危机干预、家庭治疗以及心理咨询师培训工作。'
-      },
-      {
-        company: '中山大学附属心理医院',
-        duration: '2012-2015年',
-        position: '主治心理师',
-        description: '专门从事儿童青少年心理障碍的诊断和治疗工作。'
-      }
-    ],
-    certificatesList: [
-      {
-        name: '临床心理学专业资格证书',
-        issuer: '国家卫健委',
-        number: 'LP201200134',
-        date: '2012年6月'
-      },
-      {
-        name: '青少年心理咨询专家认证',
-        issuer: '中国心理学会',
-        number: 'YP201500067',
-        date: '2015年9月'
-      },
-      {
-        name: '结构式家庭治疗师认证',
-        issuer: '国际家庭治疗学会',
-        number: 'SFT201800089',
-        date: '2018年4月'
-      }
-    ],
-    stats: {
-      caseHours: 3500,
-      experience: 12,
-      trainingHours: 800,
-      supervisionHours: 300
-    },
-    topics: [
-      { name: '青春期问题', count: 250 },
-      { name: '学习压力', count: 180 },
-      { name: '亲子关系', count: 150 },
-      { name: '厌学情绪', count: 80 },
-      { name: '叛逆行为', count: 60 },
-      { name: '同伴关系', count: 45 },
-      { name: '网络成瘾', count: 70 },
-      { name: '早恋问题', count: 40 },
-      { name: '自卑心理', count: 55 },
-      { name: '完美主义', count: 35 },
-      { name: '霸凌问题', count: 25 },
-      { name: '身份认同', count: 30 },
-      { name: '情绪波动', count: 42 },
-      { name: '学业焦虑', count: 65 }
-    ],
-    reviews: [
-      {
-        avatar: '妈',
-        username: '妈**',
-        condition: '亲子关系',
-        date: '2025/07/22',
-        content: '张老师真的很专业！帮助我们改善了和孩子的关系，现在孩子愿意和我们沟通了。',
-        expandable: false
-      },
-      {
-        avatar: '李',
-        username: '李**',
-        condition: '青春期问题',
-        date: '2025/07/20',
-        content: '女儿正值青春期，张老师给了我们很多有效的建议，家庭氛围改善了很多。',
-        expandable: false
-      },
-      {
-        avatar: '孙',
-        username: '孙**',
-        condition: '厌学情绪',
-        date: '2025/07/19',
-        content: '孩子不想上学，张老师耐心地和孩子沟通...',
-        fullContent: '孩子不想上学，张老师耐心地和孩子沟通，找到了问题的根源，现在孩子重新燃起了学习兴趣。原来孩子是因为在学校被同学排斥而产生了厌学情绪。张老师不仅帮孩子建立了自信心，还教会了孩子处理人际关系的技巧。同时也指导我们家长如何更好地支持和理解孩子，整个家庭的教育理念都得到了提升。',
-        expandable: true
-      },
-      {
-        avatar: '高',
-        username: '高**',
-        condition: '网络成瘾',
-        date: '2025/07/17',
-        content: '儿子沉迷游戏，张老师制定了详细的干预方案，现在孩子能够合理控制上网时间了。',
-        expandable: false
-      }
-    ]
-  },
-  '李心怡': {
-    name: '李心怡',
-    price: 300,
-    avatar: '/static/logo.png',
-    location: '北京·朝阳',
-    level: '高级咨询师',
-    specialty: '家庭治疗',
-    gender: '女',
-    rating: 4.9,
-    bio: '我是李心怡，专注于家庭治疗领域7年。我拥有心理学硕士学位，是经过专业认证的家庭系统治疗师和结构式家庭治疗师。我相信家庭是一个复杂的系统，每个成员都在其中扮演重要角色。通过系统性的家庭治疗方法，我帮助家庭成员重新理解彼此，改善沟通模式，建立更健康的家庭关系。',
-    credentials: ['心理学硕士', '家庭系统治疗师', '结构式家庭治疗师'],
-    educationList: [
-      {
-        degree: '硕士学位',
-        year: '2015-2018',
-        school: '北京师范大学',
-        major: '临床与咨询心理学'
-      },
-      {
-        degree: '学士学位',
-        year: '2011-2015',
-        school: '首都师范大学',
-        major: '应用心理学'
-      }
-    ],
-    experienceList: [
-      {
-        company: '北京家庭治疗中心',
-        duration: '2020年至今',
-        position: '高级家庭治疗师',
-        description: '专门从事家庭系统治疗，处理各种家庭关系问题和婚姻危机。'
-      },
-      {
-        company: '朝阳区心理健康服务中心',
-        duration: '2018-2020年',
-        position: '心理咨询师',
-        description: '提供个体、夫妻和家庭咨询服务，积累了丰富的家庭治疗经验。'
-      }
-    ],
-    certificatesList: [
-      {
-        name: '国家二级心理咨询师',
-        issuer: '人力资源和社会保障部',
-        number: 'XL201800234',
-        date: '2018年5月'
-      },
-      {
-        name: '结构式家庭治疗师认证',
-        issuer: '中国家庭治疗学会',
-        number: 'SFT201900123',
-        date: '2019年8月'
-      },
-      {
-        name: '萨提亚家庭治疗师认证',
-        issuer: '萨提亚太平洋学院',
-        number: 'SAT202000067',
-        date: '2020年11月'
-      }
-    ],
-    stats: {
-      caseHours: 2100,
-      experience: 7,
-      trainingHours: 350,
-      supervisionHours: 180
-    },
-    topics: [
-      { name: '家庭关系', count: 180 },
-      { name: '亲子沟通', count: 120 },
-      { name: '婚姻危机', count: 85 },
-      { name: '家庭冲突', count: 60 },
-      { name: '教育问题', count: 40 },
-      { name: '代际关系', count: 25 },
-      { name: '离婚调解', count: 45 },
-      { name: '继父母关系', count: 20 },
-      { name: '单亲家庭', count: 35 },
-      { name: '隔代教育', count: 30 },
-      { name: '兄弟姐妹', count: 22 },
-      { name: '家暴问题', count: 15 },
-      { name: '家庭重组', count: 18 },
-      { name: '经济压力', count: 28 }
-    ],
-    reviews: [
-      {
-        avatar: '陈',
-        username: '陈**',
-        condition: '家庭关系',
-        date: '2025/07/20',
-        content: '李老师帮助我们全家人重新理解了彼此，现在家里的氛围好了很多，孩子也更愿意和我们交流。',
-        expandable: false
-      },
-      {
-        avatar: '杨',
-        username: '杨**',
-        condition: '婚姻危机',
-        date: '2025/07/18',
-        content: '和丈夫濒临离婚，李老师用家庭治疗的方法...',
-        fullContent: '和丈夫濒临离婚，李老师用家庭治疗的方法帮我们找到了问题的核心，现在我们正在努力修复关系。通过结构式家庭治疗，李老师帮助我们看到了家庭系统中存在的问题。她让我们明白，婚姻危机往往不是某一个人的问题，而是整个家庭互动模式的结果。现在我们学会了更有效的沟通方式，也在重新建立彼此的信任。',
-        expandable: true
-      },
-      {
-        avatar: '周',
-        username: '周**',
-        condition: '单亲家庭',
-        date: '2025/07/16',
-        content: '作为单亲妈妈，李老师教会了我如何更好地平衡工作和照顾孩子，给了我很大的支持。',
-        expandable: false
-      },
-      {
-        avatar: '吴',
-        username: '吴**',
-        condition: '隔代教育',
-        date: '2025/07/14',
-        content: '婆婆带孩子理念不合，李老师帮助我们建立了有效的沟通机制，现在家庭和谐多了。',
-        expandable: false
-      }
-    ]
-  },
-  '陈志强': {
-    name: '陈志强',
-    price: 260,
-    avatar: '/static/logo.png',
-    location: '深圳·福田',
-    level: '资深咨询师',
-    specialty: '职场压力',
-    gender: '男',
-    rating: 4.7,
-    bio: '我是陈志强，专注于职场心理健康领域6年。我拥有心理学硕士学位，同时是认证的职业规划师和压力管理专家。在快节奏的现代职场中，我深度理解职场人士面临的各种压力和挑战。通过专业的心理咨询技术和丰富的职场经验，我帮助来访者有效管理工作压力，改善职场人际关系，实现工作与生活的平衡。',
-    credentials: ['心理学硕士', '职业规划师', '压力管理专家'],
-    educationList: [
-      {
-        degree: '硕士学位',
-        year: '2016-2019',
-        school: '深圳大学',
-        major: '应用心理学（组织管理方向）'
-      },
-      {
-        degree: '学士学位',
-        year: '2012-2016',
-        school: '华南理工大学',
-        major: '人力资源管理'
-      }
-    ],
-    experienceList: [
-      {
-        company: '深圳职场心理健康中心',
-        duration: '2021年至今',
-        position: '高级职场心理顾问',
-        description: '为各大企业和个人提供职场心理健康服务，专注于压力管理和职业发展。'
-      },
-      {
-        company: '腾讯员工心理健康部',
-        duration: '2019-2021年',
-        position: '企业心理咨询师',
-        description: '为腾讯员工提供职场压力管理、人际关系处理等心理咨询服务。'
-      }
-    ],
-    certificatesList: [
-      {
-        name: '国家二级心理咨询师',
-        issuer: '人力资源和社会保障部',
-        number: 'XL201900178',
-        date: '2019年5月'
-      },
-      {
-        name: '全球职业规划师认证',
-        issuer: '国际职业规划协会',
-        number: 'GCDF202000089',
-        date: '2020年3月'
-      },
-      {
-        name: '压力管理专家认证',
-        issuer: '中国心理卫生协会',
-        number: 'SM202100045',
-        date: '2021年7月'
-      }
-    ],
-    stats: {
-      caseHours: 1800,
-      experience: 6,
-      trainingHours: 280,
-      supervisionHours: 150
-    },
-    topics: [
-      { name: '工作压力', count: 200 },
-      { name: '职业倦怠', count: 120 },
-      { name: '人际关系', count: 90 },
-      { name: '职业规划', count: 70 },
-      { name: '工作焦虑', count: 50 },
-      { name: '团队协作', count: 30 },
-      { name: '上司关系', count: 45 },
-      { name: '加班困扰', count: 60 },
-      { name: '跳槽焦虑', count: 35 },
-      { name: '晋升压力', count: 25 },
-      { name: '工作生活平衡', count: 40 },
-      { name: '同事冲突', count: 32 },
-      { name: '职场霸凌', count: 18 },
-      { name: '创业压力', count: 22 }
-    ],
-    reviews: [
-      {
-        avatar: '刘',
-        username: '刘**',
-        condition: '工作压力',
-        date: '2025/07/19',
-        content: '陈老师对职场问题很有见解，帮助我找到了应对工作压力的有效方法。',
-        expandable: false
-      },
-      {
-        avatar: '徐',
-        username: '徐**',
-        condition: '职业倦怠',
-        date: '2025/07/17',
-        content: '工作了5年感到很疲惫，陈老师帮我重新找到了工作的意义和动力。',
-        expandable: false
-      },
-      {
-        avatar: '马',
-        username: '马**',
-        condition: '上司关系',
-        date: '2025/07/15',
-        content: '和上司关系紧张，陈老师教了我很多沟通技巧...',
-        fullContent: '和上司关系紧张，陈老师教了我很多沟通技巧，现在工作环境改善了不少。之前我总是和上司产生冲突，工作压力特别大。陈老师分析了我的沟通模式，指出了我在职场交往中的盲点。他教会了我如何换位思考，理解上司的工作压力和期望。通过角色扮演练习，我学会了更合适的表达方式，现在和上司的合作更加顺畅。',
-        expandable: true
-      },
-      {
-        avatar: '郑',
-        username: '郑**',
-        condition: '跳槽焦虑',
-        date: '2025/07/13',
-        content: '想跳槽但又犹豫不决，陈老师帮我做了职业规划分析，现在目标更清晰了。',
-        expandable: false
-      },
-      {
-        avatar: '孟',
-        username: '孟**',
-        condition: '工作生活平衡',
-        date: '2025/07/11',
-        content: '总是加班没时间陪家人，陈老师给了我很多时间管理的建议，现在生活质量提高了。',
-        expandable: false
-      }
-    ]
-  },
-  '赵美丽': {
-    name: '赵美丽',
-    price: 290,
-    avatar: '/static/logo.png',
-    location: '杭州·西湖',
-    level: '专家咨询师',
-    specialty: '情绪管理',
-    gender: '女',
-    rating: 4.8,
-    bio: '我是赵美丽，专注于情绪管理和情绪调节领域9年。我拥有心理学硕士学位，是经过专业认证的情绪调节专家。我深入研究各种情绪障碍的治疗方法，特别擅长处理焦虑、抑郁、愤怒等情绪问题。通过认知行为疗法、正念疗法等多种技术，我帮助来访者学会识别、理解和有效管理自己的情绪，重新获得内心的平静与力量。',
-    credentials: ['心理学硕士', '情绪调节专家', '正念治疗师'],
-    educationList: [
-      {
-        degree: '硕士学位',
-        year: '2013-2016',
-        school: '浙江大学',
-        major: '临床心理学'
-      },
-      {
-        degree: '学士学位',
-        year: '2009-2013',
-        school: '杭州师范大学',
-        major: '应用心理学'
-      }
-    ],
-    experienceList: [
-      {
-        company: '杭州市心理健康中心',
-        duration: '2018年至今',
-        position: '情绪管理专家',
-        description: '专门从事各种情绪障碍的诊断和治疗，提供个体和团体情绪管理训练。'
-      },
-      {
-        company: '西湖区社区心理服务中心',
-        duration: '2016-2018年',
-        position: '心理咨询师',
-        description: '为社区居民提供情绪调节和心理健康服务。'
-      }
-    ],
-    certificatesList: [
-      {
-        name: '国家二级心理咨询师',
-        issuer: '人力资源和社会保障部',
-        number: 'XL201600145',
-        date: '2016年5月'
-      },
-      {
-        name: '正念减压疗法师认证',
-        issuer: '正念减压疗法国际中心',
-        number: 'MBSR201800234',
-        date: '2018年9月'
-      },
-      {
-        name: '情绪调节技术专家认证',
-        issuer: '中国心理学会',
-        number: 'ER202000078',
-        date: '2020年6月'
-      }
-    ],
-    gender: '女',
-    rating: 4.8,
-    credentials: ['心理学博士', '情绪聚焦治疗师', 'EMDR治疗师'],
-    stats: {
-      caseHours: 2600,
-      experience: 10,
-      trainingHours: 600,
-      supervisionHours: 250
-    },
-    topics: [
-      { name: '情绪调节', count: 220 },
-      { name: '焦虑管理', count: 150 },
-      { name: '愤怒控制', count: 80 },
-      { name: '抑郁情绪', count: 70 },
-      { name: '恐惧症', count: 45 },
-      { name: '创伤修复', count: 35 },
-      { name: '强迫症', count: 25 },
-      { name: '恐慌障碍', count: 30 },
-      { name: '情感障碍', count: 40 },
-      { name: '自我接纳', count: 55 },
-      { name: '压力释放', count: 65 },
-      { name: '心理创伤', count: 28 },
-      { name: '睡眠障碍', count: 38 },
-      { name: '情绪稳定', count: 42 }
-    ],
-    reviews: [
-      {
-        avatar: '王',
-        username: '王**',
-        condition: '情绪调节',
-        date: '2025/07/21',
-        content: '赵老师教会了我很多情绪管理的技巧，现在我能更好地控制自己的情绪了。',
-        expandable: false
-      },
-      {
-        avatar: '田',
-        username: '田**',
-        condition: '焦虑管理',
-        date: '2025/07/19',
-        content: '长期焦虑让我很痛苦，赵老师用专业的方法帮我缓解了症状，生活质量大大提高。',
-        expandable: false
-      },
-      {
-        avatar: '何',
-        username: '何**',
-        condition: '愤怒控制',
-        date: '2025/07/17',
-        content: '我脾气很暴躁，赵老师教了我很多愤怒管理的技巧...',
-        fullContent: '我脾气很暴躁，赵老师教了我很多愤怒管理的技巧，现在和家人关系好多了。以前一点小事就会发火，经常和家人吵架，关系很紧张。赵老师运用情绪调节技术，帮我识别愤怒的触发点和身体信号。她教会了我深呼吸、肌肉放松等实用技巧，还帮我建立了情绪日记习惯。现在我能够在愤怒爆发前察觉并控制自己的情绪。',
-        expandable: true
-      },
-      {
-        avatar: '金',
-        username: '金**',
-        condition: '恐慌障碍',
-        date: '2025/07/15',
-        content: '恐慌发作时很可怕，赵老师的治疗很有效，现在发作频率明显减少了。',
-        expandable: false
-      },
-      {
-        avatar: '白',
-        username: '白**',
-        condition: '睡眠障碍',
-        date: '2025/07/13',
-        content: '失眠困扰我很久了，赵老师从情绪角度帮我分析，现在睡眠质量好了很多。',
-        expandable: false
-      }
-    ]
-  }
-}
-
-const counselor = ref({
-  name: '',
-  price: 0,
-  avatar: '/static/logo.png',
-  location: '',
-  credentials: [],
-  stats: { 
-    caseHours: 0, 
-    experience: 0, 
-    trainingHours: 0, 
-    supervisionHours: 0 
-  },
-  topics: [],
-  reviews: []
-})
-const loading = ref(true)
 const showAllTopics = ref(false)
 const expandedReviews = ref(new Set()) // 管理展开的评论
+const counselor = ref({})
+const loading = ref(false)
 
-onMounted(() => {
-  // 页面加载时根据传入的咨询师ID或姓名获取详细信息
-  const pages = getCurrentPages()
-  const currentPage = pages[pages.length - 1]
-  const options = currentPage.options
+// 预约相关数据
+const showAppointmentModal = ref(false)
+const appointmentData = ref({
+  startDate: '',
+  startTime: '',
+  duration: 30, // 默认30分钟
+  note: ''
+})
+const isSubmittingAppointment = ref(false)
 
-  console.log('页面参数:', options)
+// 时长选项（30分钟为单位）
+const durationOptions = [
+  { value: 30, label: '30分钟' },
+  { value: 60, label: '1小时' },
+  { value: 90, label: '1.5小时' },
+  { value: 120, label: '2小时' },
+  { value: 150, label: '2.5小时' },
+  { value: 180, label: '3小时' },
+  { value: 210, label: '3.5小时' },
+  { value: 240, label: '4小时' },
+  { value: 270, label: '4.5小时' },
+  { value: 300, label: '5小时' },
+  { value: 330, label: '5.5小时' },
+  { value: 360, label: '6小时' }
+]
 
-  // 优先使用 id，然后是 counselorId，最后是 name，并自动 decodeURIComponent
-  const rawId = options.id || options.counselorId || options.name
-  const counselorId = rawId ? decodeURIComponent(rawId) : ''
+onMounted(async () => {
+  loading.value = true
+  console.log('=== 开始加载咨询师详情 ===')
+  
+  try {
+    // 获取当前页面参数id
+    const pages = getCurrentPages()
+    const currentPage = pages[pages.length - 1]
+    const options = currentPage.options
+    const id = options.id || options.counselorId || options.name
+    console.log('获取到的咨询师ID:', id)
+    console.log('页面参数:', options)
+    
+    // 获取所有咨询师
+    console.log('开始获取咨询师列表...')
+    const list = await counselorAPI.getCounselorList()
 
-  if (counselorId) {
-    getCounselorDetail(counselorId)
-  } else {
-    // 如果没有参数，加载默认咨询师数据
-    console.log('未找到咨询师参数，加载默认数据')
-    getCounselorDetail('1') // 默认加载ID为1的咨询师
+    // 查找对应咨询师
+    const found = Array.isArray(list) ? list.find(item => {
+      return String(item.id) === String(id)
+    }) : null
+    
+    console.log('找到的咨询师:', found)
+    
+    if (found) {
+      counselor.value = {
+        id: found.id,
+        name: found.name || '咨询师',
+        avatar: `${BASE_URL}/static/${found.avatar || `user/avatars/default.jpg`}`,
+        price: found.pricePerHour || found.price || 0,
+        location: found.location || '未知地区',
+        bio: found.bio || '',
+        credentials: found.credentials || [],
+        consultationMethods: found.consultationMethods || [],
+        availability: found.availability || '',
+        educationList: found.educationList || [],
+        experienceList: found.experienceList || [],
+        certificatesList: found.certificationList || [],
+        stats: {
+          caseHours: found.consultationHours || 0,
+          experience: found.experienceYears || 0,
+          trainingHours: found.trainingHours || 0,
+          supervisionHours: found.supervisionHours || 0
+        },
+        topics: found.specialty || [],
+        reviews: found.reviews || []
+      }
+      console.log('咨询师详情加载成功:', counselor.value)
+    } 
+    else {
+      console.log('未找到对应咨询师')
+    }
+  } catch (e) {
+    console.error('加载咨询师详情失败:', e)
+    uni.showToast({ title: '加载失败', icon: 'none' })
+  } finally {
+    loading.value = false
   }
 })
-
-function goBack() {
-  // 修正返回逻辑，优先 navigateBack，失败则跳首页
-  uni.navigateBack({
-    fail: () => {
-      uni.switchTab({ url: '/pages/index/index' })
-    }
-  })
-}
-
-function getCounselorDetail(counselorId) {
-  console.log('获取咨询师详情:', counselorId)
-  loading.value = true
-  
-  // ID 映射表：将数字 ID 映射到咨询师姓名
-  const idMapping = {
-    '1': '李心怡',
-    '2': '陈志强'
-  }
-  
-  // 如果传入的是数字 ID，转换为咨询师姓名
-  const actualId = idMapping[counselorId] || counselorId
-  
-  // 模拟网络请求延迟
-  setTimeout(() => {
-    // 优先从咨询师端同步的数据库获取信息
-    let counselorData = null
-    
-    try {
-      const syncedDatabase = uni.getStorageSync('counselorDatabase')
-      if (syncedDatabase && syncedDatabase[actualId]) {
-        counselorData = syncedDatabase[actualId]
-        console.log('从同步数据库加载咨询师数据:', counselorData.name)
-      }
-    } catch (error) {
-      console.log('读取同步数据库失败，使用默认数据库')
-    }
-    
-    // 如果同步数据库中没有，使用本地默认数据库
-    if (!counselorData) {
-      counselorData = counselorDatabase[actualId]
-    }
-    
-    if (counselorData) {
-      counselor.value = counselorData
-      console.log('成功加载咨询师数据:', counselorData.name)
-      
-      // 显示成功提示
-      uni.showToast({
-        title: `已加载${counselorData.name}的资料`,
-        icon: 'success',
-        duration: 1500
-      })
-    } else {
-      // 如果找不到对应的咨询师，显示错误信息并使用默认数据
-      console.warn('未找到咨询师信息:', actualId)
-      
-      // 显示可用的咨询师列表
-      const availableCounselors = Object.keys(counselorDatabase).join(', ')
-      console.log('可用的咨询师:', availableCounselors)
-      
-      uni.showToast({
-        title: '咨询师信息未找到',
-        icon: 'none',
-        duration: 2000
-      })
-      
-      // 使用默认的第一个咨询师数据
-      const firstCounselor = Object.keys(counselorDatabase)[0]
-      counselor.value = counselorDatabase[firstCounselor] || {
-        name: '咨询师',
-        price: 0,
-        avatar: '/static/logo.png',
-        location: '未知',
-        credentials: [],
-        stats: { caseHours: 0, experience: 0, trainingHours: 0, supervisionHours: 0 },
-        topics: [],
-        reviews: []
-      }
-    }
-    
-    loading.value = false
-  }, 300) // 300ms 延迟模拟加载过程
-}
-
-function sendMessage() {
-  // 检查登录状态
-  const token = uni.getStorageSync('token')
-  if (!token) {
-    uni.showToast({
-      title: '请先登录',
-      icon: 'none'
-    })
-    return
-  }
-  
-  uni.showToast({
-    title: '发送私信',
-    icon: 'success'
-  })
-}
 
 function makeAppointment() {
   // 检查登录状态
@@ -1123,10 +438,8 @@ function makeAppointment() {
     return
   }
   
-  uni.showToast({
-    title: '立即预约',
-    icon: 'success'
-  })
+  // 显示预约模态框
+  showAppointmentModal.value = true
 }
 
 function viewAllTopics() {
@@ -1150,6 +463,120 @@ function toggleReviewExpand(reviewIndex) {
   
   // 触发响应式更新
   expandedReviews.value = new Set(expandedReviews.value)
+}
+
+// 取消预约
+function cancelAppointment() {
+  showAppointmentModal.value = false
+  // 重置表单数据
+  appointmentData.value = {
+    startDate: '',
+    startTime: '',
+    duration: 30,
+    note: ''
+  }
+}
+
+// 验证时间是否在咨询师工作范围内
+function isTimeInWorkingHours(startTime, endTime) {
+  if (!counselor.value.availability) {
+    return true // 如果没有工作时间限制，默认通过
+  }
+  
+  // 这里可以根据 availability 字符串解析工作时间
+  // 示例：解析 "周一至周五 9:00-18:00，周末 10:00-16:00"
+  const startDateTime = new Date(`${appointmentData.value.startDate} ${startTime}`)
+  const endDateTime = new Date(`${appointmentData.value.startDate} ${endTime}`)
+  const dayOfWeek = startDateTime.getDay() // 0=周日, 1=周一, ..., 6=周六
+  
+  // 简单验证：工作日 9:00-18:00，周末 10:00-16:00
+  if (dayOfWeek >= 1 && dayOfWeek <= 5) { // 周一到周五
+    const startHour = startDateTime.getHours()
+    const endHour = endDateTime.getHours()
+    return startHour >= 9 && endHour <= 18
+  } else { // 周末
+    const startHour = startDateTime.getHours()
+    const endHour = endDateTime.getHours()
+    return startHour >= 10 && endHour <= 16
+  }
+}
+
+// 计算结束时间
+function calculateEndTime(startTime, durationMinutes) {
+  const [hours, minutes] = startTime.split(':').map(Number)
+  const startDate = new Date()
+  startDate.setHours(hours, minutes, 0, 0)
+  
+  const endDate = new Date(startDate.getTime() + durationMinutes * 60000)
+  return `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`
+}
+
+// 确认预约
+async function confirmAppointment() {
+  // 表单验证
+  if (!appointmentData.value.startDate || !appointmentData.value.startTime) {
+    uni.showToast({
+      title: '请选择开始时间',
+      icon: 'none'
+    })
+    return
+  }
+  // 禁止预约过去的日期
+  const now = new Date()
+  const selectedDateTime = new Date(`${appointmentData.value.startDate} ${appointmentData.value.startTime}:00`)
+  if (selectedDateTime < now) {
+    uni.showToast({
+      title: '不能预约已过去的时间',
+      icon: 'none'
+    })
+    return
+  }
+  // 计算结束时间
+  const endTime = calculateEndTime(appointmentData.value.startTime, appointmentData.value.duration)
+  
+  // 验证时间是否在工作范围内
+  if (!isTimeInWorkingHours(appointmentData.value.startTime, endTime)) {
+    uni.showToast({
+      title: '选择的时间不在咨询师工作时间范围内',
+      icon: 'none',
+      duration: 2000
+    })
+    return
+  }
+  
+  // 构造请求数据
+  const requestData = {
+    consultantId: parseInt(counselor.value.id),
+    startTime: `${appointmentData.value.startDate} ${appointmentData.value.startTime}:00`,
+    endTime: `${appointmentData.value.startDate} ${endTime}:00`,
+    note: appointmentData.value.note || ''
+  }
+  
+  console.log('预约请求数据:', requestData)
+  
+  isSubmittingAppointment.value = true
+  
+  try {
+    const response = await userAPI.createAppointment(requestData)
+    console.log('预约响应:', response)
+    
+    uni.showToast({
+      title: '预约成功',
+      icon: 'success'
+    })
+    
+    // 关闭模态框并重置数据
+    cancelAppointment()
+    
+  } catch (error) {
+    console.error('预约失败:', error)
+    uni.showToast({
+      title: '预约失败，请稍后重试',
+      icon: 'none'
+    })
+  } finally {
+    isSubmittingAppointment.value = false
+  }
 }
 </script>
 
@@ -1535,6 +962,57 @@ function toggleReviewExpand(reviewIndex) {
   color: #333;
 }
 
+/* 咨询方式样式 */
+.consultation-methods {
+  margin-top: 24rpx;
+}
+
+.method-item {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 12rpx;
+}
+
+.method-icon {
+  font-size: 32rpx;
+  color: #007aff;
+}
+
+.method-text {
+  font-size: 30rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+/* 时间安排样式 */
+.availability-content {
+  margin-top: 24rpx;
+}
+
+.availability-item {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+}
+
+.availability-icon {
+  font-size: 32rpx;
+  color: #28a745;
+}
+
+.availability-text {
+  font-size: 30rpx;
+  color: #333;
+  line-height: 1.5;
+}
+
 /* 教育背景样式 */
 .education-list {
   margin-top: 24rpx;
@@ -1787,5 +1265,154 @@ function toggleReviewExpand(reviewIndex) {
 /* 底部占位 */
 .bottom-spacer {
   height: 160rpx;
+}
+
+/* 预约模态框样式 */
+.appointment-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 32rpx;
+}
+
+.appointment-modal {
+  background: #fff;
+  border-radius: 16rpx;
+  width: 100%;
+  max-width: 600rpx;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx 32rpx 16rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.modal-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.modal-close {
+  font-size: 48rpx;
+  color: #999;
+  cursor: pointer;
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  padding: 32rpx;
+}
+
+.form-section {
+  margin-bottom: 32rpx;
+}
+
+.form-label {
+  display: block;
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 16rpx;
+  font-weight: 500;
+}
+
+.datetime-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.date-picker,
+.time-picker,
+.duration-picker {
+  flex: 1;
+}
+
+.picker-input {
+  background: #f8f9fa;
+  border: 1rpx solid #e9ecef;
+  border-radius: 8rpx;
+  padding: 20rpx 16rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.picker-input text {
+  color: #333;
+}
+
+.availability-info {
+  background: #e8f4f8;
+  border: 1rpx solid #bee5eb;
+  border-radius: 8rpx;
+  padding: 16rpx;
+}
+
+.availability-text {
+  font-size: 26rpx;
+  color: #0c5460;
+  line-height: 1.4;
+}
+
+.note-input {
+  width: 100%;
+  min-height: 120rpx;
+  background: #f8f9fa;
+  border: 1rpx solid #e9ecef;
+  border-radius: 8rpx;
+  padding: 16rpx;
+  font-size: 28rpx;
+  color: #333;
+  box-sizing: border-box;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 16rpx;
+  padding: 16rpx 32rpx 32rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.cancel-btn,
+.confirm-btn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 12rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cancel-btn {
+  background: #f8f9fa;
+  color: #666;
+}
+
+.confirm-btn {
+  background: #007aff;
+  color: #fff;
+}
+
+.confirm-btn:disabled {
+  background: #ccc;
+  color: #999;
 }
 </style>

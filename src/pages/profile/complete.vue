@@ -117,7 +117,7 @@
       </button>
     </view>
 
-    <!-- 底部导航栏 -->
+     <!-- 底部导航栏 -->
     <view class="bottom-nav">
       <view class="nav-item" @click="goHome">
         <text class="nav-icon">🏠</text>
@@ -126,8 +126,19 @@
       <view class="nav-item" @click="handleWishClick">
         <text class="nav-icon">💭</text>
         <text class="nav-label">心愿心语</text>
+        <view v-if="unreadMessageCount > 0" class="nav-badge">
+          {{ unreadMessageCount > 99 ? '99+' : unreadMessageCount }}
+        </view>
       </view>
-      <view class="nav-item active">
+      <view class="nav-item" @click="goTestResults">
+        <text class="nav-icon">📊</text>
+        <text class="nav-label">测评结果</text>
+      </view>
+      <view class="nav-item" @click="goMyAppointments">
+        <text class="nav-icon">📅</text>
+        <text class="nav-label">我的预约</text>
+      </view>
+      <view class="nav-item">
         <text class="nav-icon">👤</text>
         <text class="nav-label">个人中心</text>
       </view>
@@ -138,6 +149,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { REGION_OPTIONS, BIRTHDAY_CONFIG, isValidGender, isValidBirthday, calculateAge } from '@/utils/constants.js'
+import {goHome,handleWishClick,goTestResults,goMyAppointments} from '@/utils/page-turning.js'
 
 const userInfo = ref({
   nickname: '',
@@ -342,34 +354,13 @@ function skipProfile() {
     }
   })
 }
-
-// 首页导航
-function goHome() {
-  uni.reLaunch({
-    url: '/pages/index/index'
-  })
-}
-
-// 心愿心语导航
-function handleWishClick() {
-  // 检查登录状态
-  const token = uni.getStorageSync('token')
-  if (!token) {
-    uni.showToast({
-      title: '需要会员登录才能使用此功能',
-      icon: 'none',
-      duration: 2000
-    })
-    return
-  }
-  
   // 这里处理心愿心语相关逻辑
   uni.showToast({
     title: '心愿心语功能开发中',
     icon: 'none',
     duration: 2000
   })
-}
+
 </script>
 
 <style scoped>

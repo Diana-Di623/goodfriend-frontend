@@ -237,7 +237,7 @@
 
     <!-- 底部导航栏 -->
     <view class="bottom-nav">
-      <view class="nav-item" @click="goAppointments">
+      <view class="nav-item" @click="goMyAppointments">
         <text class="nav-icon">📅</text>
         <text class="nav-label">我的预约</text>
       </view>
@@ -586,7 +586,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import API from '../../utils/api.js'
+import API from '@/utils/api.js'
+import { showLoadingWithProgress, goMyAppointments } from '@/utils/page-turning.js'
+
 
 // 进度条相关
 const isPageLoading = ref(false)
@@ -651,13 +653,12 @@ const counselorInfo = ref({
   rating: '5.0',
   experience: '3',
   price: 300, // 咨询费用，与 hourlyRate 保持一致
-  location: '北京·朝阳', // 地区信息
-  level: '资深咨询师', // 咨询师级别
+  location: ' ', // 地区信息
   gender: 'FEMALE', // 性别 - 使用后端期望的格式
   
   // 专业信息
-  specialties: ['焦虑抑郁', '情感关系', '职场压力'],
-  credentials: ['心理学硕士', '国家三级心理咨询师', '认知行为疗法师'], // 资质证书简化显示
+  specialties: [],
+  credentials: [], // 资质证书简化显示
   bio: '我是一名专业的心理咨询师，拥有3年的临床咨询经验。擅长处理焦虑、抑郁、情感问题等心理困扰。秉承人本主义咨询理念，致力于为每一位来访者提供温暖、专业的心理支持。',
   
   // 详细履历
@@ -720,26 +721,6 @@ const counselorInfo = ref({
 onMounted(() => {
   loadCounselorInfo()
 })
-
-// 封装全局 loading 动画启动
-function showLoadingWithProgress(duration = 500, text = '加载中...') {
-  isPageLoading.value = true
-  progressBarWidth.value = 0
-  loadingText.value = text
-  if (progressTimer) clearInterval(progressTimer)
-  setTimeout(() => {
-    let start = Date.now()
-    progressTimer = setInterval(() => {
-      const elapsed = Date.now() - start
-      let percent = Math.min(100, (elapsed / duration) * 100)
-      progressBarWidth.value = percent
-      if (percent >= 100) {
-        clearInterval(progressTimer)
-        isPageLoading.value = false
-      }
-    }, 16)
-  }, 30)
-}
 
 // 辅助函数：获取性别显示文本
 function getGenderDisplay(gender) {
@@ -997,13 +978,6 @@ function chooseAvatar() {
 function editBio() {
   editingBio.value = counselorInfo.value.bio
   showBioModal.value = true
-}
-
-// 编辑姓名
-function editName() {
-  editingName.value = counselorInfo.value.realName || ''
-  editingLocation.value = counselorInfo.value.location || ''
-  showNameModal.value = true
 }
 
 // 编辑公开展示设置
@@ -1343,19 +1317,11 @@ function savePublicSettings() {
     return
   }
   
-  // 更新咨询师基本信息
-  console.log('=== 保存公开设置 ===')
-  console.log('编辑前性别:', counselorInfo.value.gender)
-  console.log('表单中性别:', editingPublicSettings.value.gender)
   
   counselorInfo.value.realName = editingPublicSettings.value.name.trim()
   counselorInfo.value.name = editingPublicSettings.value.name.trim()
   counselorInfo.value.location = editingPublicSettings.value.location.trim()
   counselorInfo.value.gender = editingPublicSettings.value.gender
-  
-  console.log('更新后性别:', counselorInfo.value.gender)
-  console.log('性别显示文本:', getGenderDisplay(counselorInfo.value.gender))
-  console.log('==================')
   
   // 异步保存并更新UI
   saveCounselorInfo().then(() => {
@@ -1448,10 +1414,6 @@ function addCertificate() {
   })
 }
 
-function addSpecialty() {
-  editingSpecialties.value.push('')
-}
-
 function addCustomSpecialty() {
   editingCustomSpecialties.value.push('')
 }
@@ -1467,10 +1429,6 @@ function removeExperience(index) {
 
 function removeCertificate(index) {
   editingCertificates.value.splice(index, 1)
-}
-
-function removeSpecialty(index) {
-  editingSpecialties.value.splice(index, 1)
 }
 
 function removeCustomSpecialty(index) {
@@ -1582,19 +1540,6 @@ async function saveCounselorInfo() {
       throw new Error('用户信息不存在，请重新登录')
     }
 
-    // 调试：显示当前完整的 counselorInfo 数据
-    console.log('=== 当前完整的 counselorInfo 数据 ===')
-    console.log('realName:', counselorInfo.value.realName)
-    console.log('name:', counselorInfo.value.name)
-    console.log('location:', counselorInfo.value.location)
-    console.log('specialties:', counselorInfo.value.specialties)
-    console.log('bio:', counselorInfo.value.bio)
-    console.log('stats:', counselorInfo.value.stats)
-    console.log('consultationMethods:', counselorInfo.value.consultationMethods)
-    console.log('hourlyRate:', counselorInfo.value.hourlyRate)
-    console.log('完整对象:', JSON.stringify(counselorInfo.value, null, 2))
-    console.log('=====================================')
-
     // 准备API数据格式 - 确保与标准格式完全匹配，正确处理0值
     const apiData = {
       name: (counselorInfo.value.realName || counselorInfo.value.name || '').toString(),
@@ -1639,79 +1584,6 @@ async function saveCounselorInfo() {
           })) 
         : []
     }
-
-    // 数据验证
-    console.log('=== 数据映射对比 ===')
-    console.log('name字段:', {
-      来源: 'counselorInfo.value.realName || counselorInfo.value.name',
-      realName: counselorInfo.value.realName,
-      name: counselorInfo.value.name,
-      最终值: apiData.name
-    })
-    console.log('location字段:', {
-      来源: 'counselorInfo.value.location',
-      原始值: counselorInfo.value.location,
-      最终值: apiData.location
-    })
-    console.log('specialty字段:', {
-      来源: 'counselorInfo.value.specialties',
-      原始值: counselorInfo.value.specialties,
-      是否数组: Array.isArray(counselorInfo.value.specialties),
-      最终值: apiData.specialty
-    })
-    console.log('bio字段:', {
-      来源: 'counselorInfo.value.bio',
-      原始值: counselorInfo.value.bio,
-      最终值: apiData.bio
-    })
-    console.log('pricePerHour字段:', {
-      来源: 'counselorInfo.value.hourlyRate || counselorInfo.value.price',
-      hourlyRate: counselorInfo.value.hourlyRate,
-      price: counselorInfo.value.price,
-      最终值: apiData.pricePerHour
-    })
-    console.log('性别字段映射:', {
-      来源: 'counselorInfo.value.gender',
-      原始值: counselorInfo.value.gender,
-      类型: typeof counselorInfo.value.gender,
-      最终值: apiData.gender,
-      有效选项: ['UNKNOWN', 'FEMALE', 'MALE']
-    })
-    console.log('统计数据字段映射:', {
-      experienceYears: {
-        来源: 'stats.experience || experienceYears || experience',
-        'stats.experience': counselorInfo.value.stats?.experience,
-        experienceYears: counselorInfo.value.experienceYears,
-        experience: counselorInfo.value.experience,
-        最终值: apiData.experienceYears
-      },
-      consultationCount: {
-        来源: 'stats.caseHours || consultationCount',
-        'stats.caseHours': counselorInfo.value.stats?.caseHours,
-        consultationCount: counselorInfo.value.consultationCount,
-        最终值: apiData.consultationCount
-      },
-      trainingHours: {
-        来源: 'stats.trainingHours',
-        原始值: counselorInfo.value.stats?.trainingHours,
-        最终值: apiData.trainingHours
-      },
-      supervisionHours: {
-        来源: 'stats.supervisionHours',
-        原始值: counselorInfo.value.stats?.supervisionHours,
-        最终值: apiData.supervisionHours
-      }
-    })
-    console.log('=======================')
-    
-    console.log('=== 数据验证阶段 ===')
-    console.log('counselorInfo结构:', Object.keys(counselorInfo.value))
-    console.log('certificates字段:', counselorInfo.value.certificates)
-    console.log('educationList字段:', counselorInfo.value.educationList)
-    console.log('experienceList字段:', counselorInfo.value.experienceList)
-    console.log('specialties字段:', counselorInfo.value.specialties)
-    console.log('consultationMethods字段:', counselorInfo.value.consultationMethods)
-
     // 验证必填字段
     if (!apiData.name) {
       throw new Error('咨询师姓名不能为空')
@@ -1876,18 +1748,7 @@ async function saveCounselorInfo() {
   }
 }
 
-// 跳转到预约管理
-function goAppointments() {
-  API.smartNavigate({
-    url: '/pages/counselor/appointments'
-  }).catch(error => {
-    console.error('页面跳转失败:', error)
-    uni.showToast({
-      title: '页面跳转失败',
-      icon: 'error'
-    })
-  })
-}
+
 </script>
 
 <style scoped>
