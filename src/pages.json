@@ -78,6 +78,13 @@
 				"navigationBarTitleText": "个人简历",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/counselor/appointments",
+			"style": {
+				"navigationBarTitleText": "我的客户",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"globalStyle": {
@@ -93,11 +100,5 @@
 	"condition": {
 		"current": 0,
 		"list": []
-	},
-	"preloadRule": {
-		"pages/index/index": {
-			"network": "all",
-			"packages": ["pages/login/login", "pages/wish/wish", "pages/test/results"]
-		}
 	}
 }

@@ -1,21 +1,39 @@
 <template>
-  <view class="min-h-screen bg-gradient">
-    <!-- 顶部导航区 -->
-    <view class="header">
-      <view class="slogan">{{ slogans[currentSlogan] }}</view>
-    </view>
-
-    <view class="main-content">
-      <!-- 专业团队区域 -->
-      <view class="section">
-        <view class="main-title" style="margin-bottom: 18rpx;">♥ 好朋友心理 ♥</view>
-        <view class="section-title">
-          <text class="icon-heart"></text>
-          <text>专业团队</text>
-          <text class="badge">认证心理咨询师在线支持</text>
+  <view class="page-container">
+    <!-- 主内容区域 -->
+    <view class="content-wrapper">
+      <view class="min-h-screen bg-gradient">
+        <!-- 顶部导航区 -->
+        <view class="header">
+          <view class="slogan">{{ slogans[currentSlogan] }}</view>
         </view>
+
+        <view class="main-content">
+          <!-- 专业团队区域 -->
+          <view class="section">
+            <view class="main-title" style="margin-bottom: 18rpx;">♥ 好朋友心理 ♥</view>
+            <view class="section-title">
+              <text class="icon-heart"></text>
+              <text>专业团队</text>
+              <text class="badge">认证心理咨询师在线支持</text>
+            </view>
         <view class="counselor-scroll-with-hotline">
-          <view class="counselor-container">
+          <!-- 骨架屏：当正在加载时显示 -->
+          <view v-if="isLoadingCounselors" class="counselor-container">
+            <view v-for="i in 6" :key="'skeleton-' + i" class="counselor-card counselor-skeleton">
+              <view class="counselor-avatar-skeleton"></view>
+              <view class="counselor-info">
+                <view class="counselor-name-skeleton"></view>
+                <view class="counselor-meta-skeleton">
+                  <view class="meta-skeleton-item"></view>
+                  <view class="meta-skeleton-item"></view>
+                  <view class="meta-skeleton-item"></view>
+                </view>
+              </view>
+            </view>
+          </view>
+          <!-- 实际内容：当加载完成时显示 -->
+          <view v-else class="counselor-container">
             <view v-for="(counselor, idx) in visibleCounselors" :key="counselor.id || idx" class="counselor-card" @click="handleCounselorClick(counselor)">
               <image class="counselor-avatar" :src="counselor.avatar" lazy-load mode="aspectFill" />
               <view class="counselor-info">
@@ -36,62 +54,95 @@
             </view>
           </view>
         </view>
-      </view>
+          </view>
 
-      <!-- 心理测评模块 -->
-      <view class="section">
-        <view class="section-title">
-          <text class="icon-test">📝</text>
-          <text>心理测评</text>
-          <text class="badge">专业量表科学评估</text>
-        </view>
-        <view class="test-cards">
-          <view class="test-card sds-card" @click="handleTestClick('SDS')">
-            <view class="test-header">
-              <view class="test-info">
-                <text class="test-name">抑郁自评量表</text>
-                <text class="test-code sds-code">SDS</text>
+          <!-- 心理测评模块 -->
+          <view class="section">
+            <view class="section-title">
+              <text class="icon-test">📝</text>
+              <text>心理测评</text>
+              <text class="badge">专业量表科学评估</text>
+            </view>
+            <view class="test-cards">
+              <view class="test-card sds-card" @click="handleTestClick('SDS')">
+                <view class="test-header">
+                  <view class="test-info">
+                    <text class="test-name">抑郁自评量表</text>
+                    <text class="test-code sds-code">SDS</text>
+                  </view>
+                </view>
+                <text class="test-desc">评估抑郁程度的经典量表，包含20个项目，帮助识别抑郁症状，科学有效</text>
+                <view class="test-meta">
+                  <text class="test-time">⏱️ 5-10分钟</text>
+                  <text class="test-users">已有8,420人测试</text>
+                </view>
+              </view>
+              
+              <view class="test-card sas-card" @click="handleTestClick('SAS')">
+                <view class="test-header">
+                  <view class="test-info">
+                    <text class="test-name">焦虑自评量表</text>
+                    <text class="test-code sas-code">SAS</text>
+                  </view>
+                </view>
+                <text class="test-desc">评估焦虑水平的标准量表，包含20个项目，测量焦虑状态和特质，权威准确</text>
+                <view class="test-meta">
+                  <text class="test-time">⏱️ 5-10分钟</text>
+                  <text class="test-users">已有9,630人测试</text>
+                </view>
               </view>
             </view>
-            <text class="test-desc">评估抑郁程度的经典量表，包含20个项目，帮助识别抑郁症状，科学有效</text>
-            <view class="test-meta">
-              <text class="test-time">⏱️ 5-10分钟</text>
-              <text class="test-users">已有8,420人测试</text>
-            </view>
           </view>
-          
-          <view class="test-card sas-card" @click="handleTestClick('SAS')">
-            <view class="test-header">
-              <view class="test-info">
-                <text class="test-name">焦虑自评量表</text>
-                <text class="test-code sas-code">SAS</text>
+
+          <!-- 心理推文板块 -->
+          <view class="section">
+            <view class="section-title">
+              <text class="icon-message"></text>
+              <text>心理推文</text>
+            </view>
+            <scroll-view scroll-x class="article-list">
+              <view v-for="(article, idx) in articles" :key="idx" class="article-card" @click="handleArticleClick(article)">
+                <view class="article-title">{{ article }}</view>
+                <view class="article-desc">点击阅读全文</view>
               </view>
-            </view>
-            <text class="test-desc">评估焦虑水平的标准量表，包含20个项目，测量焦虑状态和特质，权威准确</text>
-            <view class="test-meta">
-              <text class="test-time">⏱️ 5-10分钟</text>
-              <text class="test-users">已有9,630人测试</text>
-            </view>
+            </scroll-view>
           </view>
         </view>
       </view>
 
-      <!-- 心理推文板块 -->
-      <view class="section">
-        <view class="section-title">
-          <text class="icon-message"></text>
-          <text>心理推文</text>
-        </view>
-        <scroll-view scroll-x class="article-list">
-          <view v-for="(article, idx) in articles" :key="idx" class="article-card" @click="handleArticleClick(article)">
-            <view class="article-title">{{ article }}</view>
-            <view class="article-desc">点击阅读全文</view>
+      <!-- 下拉刷新提示 -->
+      <view class="refresh-tip" :class="{ show: isRefreshing }">
+        <text class="icon-refresh"></text>
+        有什么麻烦都可以跟好朋友说哟
+      </view>
+
+      <!-- 登录弹窗 -->
+      <view v-if="showLoginModal" class="login-modal">
+        <view class="login-overlay" @click="closeLogin"></view>
+        <view class="login-content">
+          <!-- 头部 -->
+          <view class="login-header">
+            <text class="login-title">会员登录</text>
           </view>
-        </scroll-view>
+
+          <!-- 底部操作区 -->
+          <view class="login-bottom">
+            <!-- 用户协议 -->
+            <view class="terms-section" @click="toggleTerms">
+              <checkbox :checked="termsAccepted" class="terms-checkbox" />
+              <text class="terms-text">我同意服务条款与隐私政策</text>
+            </view>
+
+            <!-- 登录按钮 -->
+            <button class="login-btn" @click="goToLoginPage">
+              立即登录
+            </button>
+          </view>
+        </view>
       </view>
     </view>
 
-    <!-- 底部导航栏 -->
+    <!-- 底部导航栏 - 移到页面容器外层 -->
     <view class="bottom-nav">
       <view class="nav-item">
         <text class="nav-icon">🏠</text>
@@ -117,37 +168,6 @@
         <text class="nav-label">个人中心</text>
       </view>
     </view>
-
-    <!-- 下拉刷新提示 -->
-    <view class="refresh-tip" :class="{ show: isRefreshing }">
-      <text class="icon-refresh"></text>
-      有什么麻烦都可以跟好朋友说哟
-    </view>
-
-    <!-- 登录弹窗 -->
-    <view v-if="showLoginModal" class="login-modal">
-      <view class="login-overlay" @click="closeLogin"></view>
-      <view class="login-content">
-        <!-- 头部 -->
-        <view class="login-header">
-          <text class="login-title">会员登录</text>
-        </view>
-
-        <!-- 底部操作区 -->
-        <view class="login-bottom">
-          <!-- 用户协议 -->
-          <view class="terms-section" @click="toggleTerms">
-            <checkbox :checked="termsAccepted" class="terms-checkbox" />
-            <text class="terms-text">我同意服务条款与隐私政策</text>
-          </view>
-
-          <!-- 登录按钮 -->
-          <button class="login-btn" @click="goToLoginPage">
-            立即登录
-          </button>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
@@ -157,7 +177,6 @@ import { counselorAPI,BASE_URL } from '@/utils/api.js'
 import { checkAndGuideUser } from '@/utils/user.js'
 import {unreadMessageCount }from '@/utils/constants.js'
 import { goMyAppointments,handleWishClick,goProfile,goTestResults} from '@/utils/page-turning.js'
-import { throttle, runWhenIdle } from '@/utils/performance.js'
 
 const currentSlogan = ref(0)
 const isRefreshing = ref(false)
@@ -166,6 +185,7 @@ const termsAccepted = ref(false) // 用户协议同意状态
 const isLoggedIn = ref(false) // 用户登录状态
 const counselorIndex = ref(0) // 当前显示的咨询师起始索引
 const currentUserInfo = ref({}) // 当前用户信息
+const isLoadingCounselors = ref(true) // 咨询师数据加载状态
 
 
 const slogans = [
@@ -238,44 +258,40 @@ onMounted(async () => {
 
 // 异步加载咨询师数据 - 分离出来避免阻塞
 async function loadCounselorsAsync() {
-  // 使用 runWhenIdle 在空闲时加载数据
-  runWhenIdle(async () => {
-    try {
-      const res = await counselorAPI.getCounselorList()
-      
-      if (res && Array.isArray(res)) {
-        // 优化：使用更高效的数组操作
-        counselors.value = res.map(item => ({
-          id: item.id,
-          name: item.name,
-          level: item.level || '咨询师',
-          specialty: Array.isArray(item.specialty) ? item.specialty.join('、') : item.specialty || '心理咨询',
-          gender: item.gender === 'UNKNOWN' ? '未知' : (item.gender === 'MALE' ? '男' : item.gender === 'FEMALE' ? '女' : item.gender),
-          location: item.location || '未知',
-          rating: item.rating || 0,
-          avatar: item.avatar ? `${BASE_URL}/static/${item.avatar}` : '/static/logo.png'
-        }))
-      }
-    } catch (error) {
-      console.error('获取咨询师列表失败:', error)
-      // 加载失败时显示默认数据，确保页面正常显示
-      counselors.value = []
+  // 1. 优先显示缓存
+  const cacheKey = 'counselorListCache'
+  const cache = uni.getStorageSync(cacheKey)
+  if (cache && Array.isArray(cache) && cache.length > 0) {
+    counselors.value = cache
+    isLoadingCounselors.value = false // 有缓存就立即停止加载状态
+  }
+  // 2. 立即异步刷新数据
+  try {
+    const res = await counselorAPI.getCounselorList()
+    if (res && Array.isArray(res)) {
+      const formatted = res.map(item => ({
+        id: item.id,
+        name: item.name,
+        level: item.level || '咨询师',
+        specialty: Array.isArray(item.specialty) ? item.specialty.join('、') : item.specialty || '心理咨询',
+        gender: item.gender === 'UNKNOWN' ? '未知' : (item.gender === 'MALE' ? '男' : item.gender === 'FEMALE' ? '女' : item.gender),
+        location: item.location || '未知',
+        rating: item.rating || 0,
+        avatar: item.avatar ? `${BASE_URL}/static/${item.avatar}` : '/static/logo.png'
+      }))
+      counselors.value = formatted
+      uni.setStorageSync(cacheKey, formatted)
     }
-  })
+  } catch (error) {
+    // 保持已有数据
+  } finally {
+    isLoadingCounselors.value = false // 无论成功失败都停止加载状态
+  }
 }
-
 onUnmounted(() => {
   clearInterval(interval)
   clearInterval(scrollInterval)
 })
-
-// 使用节流优化刷新功能
-const handleRefresh = throttle(() => {
-  isRefreshing.value = true
-  setTimeout(() => {
-    isRefreshing.value = false
-  }, 1000)
-}, 2000) // 2秒内最多刷新一次
 
 // 咨询师点击处理
 function handleCounselorClick(counselor) {
@@ -356,17 +372,34 @@ function closeLogin() {
 </script>
 
 <style scoped>
+/* 页面容器样式 - 使用flex布局确保底部导航固定 */
+.page-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.content-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* 你可以根据实际需求自定义样式，以下为简化版 */
 .bg-gradient {
   background: linear-gradient(135deg, #ecb198 0%, #e2beeb 50%, #b5d9ee 100%);
   min-height: 100vh;
-  height: 100vh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   /* 性能优化：启用硬件加速 */
   transform: translateZ(0);
   will-change: auto;
+  /* 确保不影响fixed定位 */
+  position: relative;
+  /* 确保滚动不影响底部导航 */
+  overflow-x: hidden;
 }
 .header { 
   display: flex; 
@@ -392,9 +425,10 @@ function closeLogin() {
 .slogan { font-size: 36rpx; color: #666; font-weight: 500; }
 .main-content {
   flex: 1;
-  overflow-y: auto;
-  padding: 32rpx 24rpx 160rpx;
+  padding: 32rpx 24rpx 32rpx;
   box-sizing: border-box;
+  /* 优化滚动性能 */
+  -webkit-overflow-scrolling: touch;
 }
 .section { margin-bottom: 32rpx; }
 .section-title { display: flex; align-items: center; gap: 12rpx; font-size: 32rpx; font-weight: bold; color: #333; margin-bottom: 16rpx; }
@@ -472,6 +506,45 @@ function closeLogin() {
 }
 .counselor-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; margin-right: 24rpx; }
 .counselor-info { flex: 1; text-align: left; }
+
+/* 骨架屏样式 */
+.counselor-skeleton {
+  pointer-events: none;
+}
+.counselor-avatar-skeleton {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  margin-right: 24rpx;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 37%, #f0f0f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.2s infinite linear;
+}
+.counselor-name-skeleton {
+  width: 160rpx;
+  height: 32rpx;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 37%, #f0f0f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.2s infinite linear;
+  border-radius: 4rpx;
+  margin-bottom: 8rpx;
+}
+.counselor-meta-skeleton {
+  display: flex;
+  gap: 12rpx;
+}
+.meta-skeleton-item {
+  width: 80rpx;
+  height: 24rpx;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 37%, #f0f0f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.2s infinite linear;
+  border-radius: 4rpx;
+}
+@keyframes skeleton-loading {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
 .counselor-name { font-size: 28rpx; font-weight: bold; color: #333; margin-bottom: 8rpx; }
 .level { background: #e3f2fd; color: #1976d2; font-size: 18rpx; border-radius: 6rpx; padding: 2rpx 6rpx; margin-left: 4rpx; }
 .counselor-meta { display: flex; align-items: center; gap: 8rpx; font-size: 20rpx; color: #666; flex-wrap: nowrap; }
@@ -614,20 +687,19 @@ function closeLogin() {
 }
 .login-btn:active { opacity: 0.8; }
 
-/* 底部导航栏样式 */
+/* 底部导航栏样式 - 使用flex布局固定在底部 */
 .bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
   height: 120rpx;
   background: #fff;
   border-top: 1rpx solid #f0f0f0;
   display: flex;
   align-items: center;
   justify-content: space-around;
-  z-index: 1000;
+  flex-shrink: 0;
   box-shadow: 0 -2rpx 10rpx rgba(0,0,0,0.1);
+  /* 确保在所有平台都固定在底部 */
+  position: relative;
+  z-index: 1000;
 }
 
 .nav-item {

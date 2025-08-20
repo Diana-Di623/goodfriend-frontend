@@ -220,7 +220,7 @@
 
     <!-- 底部导航栏 -->
     <view class="bottom-nav">
-      <view class="nav-item" @click="goMyAppointments">
+      <view class="nav-item" @click="goAppointments">
         <text class="nav-icon">📅</text>
         <text class="nav-label">我的预约</text>
       </view>
@@ -570,7 +570,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import API from '@/utils/api.js'
-import { goMyAppointments } from '@/utils/page-turning.js'
+import { goAppointments } from '@/utils/page-turning.js'
 
 
 // 强制更新标志

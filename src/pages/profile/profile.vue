@@ -1519,17 +1519,10 @@ async function submitCounselorApplication() {
   color: #1ba7d0;
   font-weight: 600;
   position: relative;
-}
-
-.consultant-info-label::after {
-  content: '';
-  position: absolute;
-  bottom: -2rpx;
-  left: 0;
-  width: 100%;
-  height: 2rpx;
+  border-bottom: 2rpx solid transparent;
   background: linear-gradient(135deg, #1ba7d0, #4bc3b2);
-  border-radius: 1rpx;
+  background-clip: text;
+  -webkit-background-clip: text;
 }
 
 .textarea-field {

@@ -1,14 +1,32 @@
 
-import { ref } from 'vue'
-
 // 首页导航 - 优化版本
 export function goHome() {
-  // 使用reLaunch确保快速跳转，清空页面栈
-  uni.reLaunch({
-    url: '/pages/index/index'
+  // 获取当前页面栈
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1]
+  
+  // 如果当前就在首页，不需要跳转
+  if (currentPage.route === 'pages/index/index') {
+    return
+  }
+  
+  // 简单直接的跳转方式，避免复杂的页面栈操作
+  uni.navigateTo({
+    url: '/pages/index/index',
+    fail: () => {
+      // 如果navigateTo失败（页面栈满），则用redirectTo
+      uni.redirectTo({
+        url: '/pages/index/index'
+      })
+    }
   })
 }
-
+export function goAppointments() {
+  // 使用reLaunch确保快速跳转，清空页面栈
+  uni.reLaunch({
+    url: '/pages/counselor/appointments'
+  })
+}
 // 测评跳转 - 优化版本
 export function goTest(testType) {
   const testRoutes = {
