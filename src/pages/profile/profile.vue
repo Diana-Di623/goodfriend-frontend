@@ -1,23 +1,6 @@
 
 <template>
   <view class="profile-page">
-    <!-- 全局加载遮罩 -->
-    <view v-if="isPageLoading" class="global-loading-mask">
-      <view class="loading-progress-bar-info">
-        <text class="loading-progress-text">{{ Math.round(progressBarWidth) }}%</text>
-      </view>
-      <view class="loading-progress-bar-wrap-bottom">
-        <view class="loading-progress-bar" :style="{ width: progressBarWidth + '%' }"></view>
-      </view>
-      <image class="loading-logo" src="/static/logo.png" mode="aspectFit" />
-      <text class="loading-title">好朋友心理</text>
-      <view class="loading-spinner">
-        <view class="dot"></view>
-        <view class="dot"></view>
-        <view class="dot"></view>
-      </view>
-      <text class="loading-text">{{ loadingText }}</text>
-    </view>
 
     <!-- 头部 -->
     <view class="header">
@@ -508,7 +491,7 @@
 import { ref, onMounted } from 'vue'
 import { GENDER_OPTIONS, REGION_OPTIONS, BIRTHDAY_CONFIG,unreadMessageCount , isValidGender, isValidBirthday, calculateAge} from '@/utils/constants.js'
 import { userAPI, counselorAPI,BASE_URL} from '@/utils/api.js'
-import {handleWishClick,goHome,goTestResults, progressBarWidth,goMyAppointments,isUserInfoComplete,isPageLoading,loadingText} from '@/utils/page-turning.js'
+import {handleWishClick,goHome,goTestResults,goMyAppointments,isUserInfoComplete} from '@/utils/page-turning.js'
 
 // 性别选项
 const genderOptions = GENDER_OPTIONS

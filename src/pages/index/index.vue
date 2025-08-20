@@ -1,23 +1,5 @@
 <template>
   <view class="min-h-screen bg-gradient">
-    <!-- 全局加载遮罩 -->
-    <view v-if="isPageLoading" class="global-loading-mask">
-      <view class="loading-progress-bar-info">
-        <text class="loading-progress-text">{{ Math.round(progressBarWidth) }}%</text>
-      </view>
-      <view class="loading-progress-bar-wrap-bottom">
-        <view class="loading-progress-bar" :style="{ width: progressBarWidth + '%' }"></view>
-      </view>
-      <image class="loading-logo" src="/static/logo.png" mode="aspectFit" />
-      <text class="loading-title">好朋友心理</text>
-      <view class="loading-spinner">
-        <view class="dot"></view>
-        <view class="dot"></view>
-        <view class="dot"></view>
-      </view>
-      <text class="loading-text">{{ loadingText }}</text>
-    </view>
-
     <!-- 顶部导航区 -->
     <view class="header">
       <view class="slogan">{{ slogans[currentSlogan] }}</view>
@@ -35,7 +17,7 @@
         <view class="counselor-scroll-with-hotline">
           <view class="counselor-container">
             <view v-for="(counselor, idx) in visibleCounselors" :key="counselor.id || idx" class="counselor-card" @click="handleCounselorClick(counselor)">
-              <image class="counselor-avatar" :src="counselor.avatar" />
+              <image class="counselor-avatar" :src="counselor.avatar" lazy-load mode="aspectFill" />
               <view class="counselor-info">
                 <view class="counselor-name">{{ counselor.name }} <text class="level">{{ counselor.level }}</text></view>
                 <view class="counselor-meta">
@@ -174,7 +156,8 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { counselorAPI,BASE_URL } from '@/utils/api.js'
 import { checkAndGuideUser } from '@/utils/user.js'
 import {unreadMessageCount }from '@/utils/constants.js'
-import { goMyAppointments,handleWishClick,goProfile,showLoadingWithProgress,goTestResults,isPageLoading,progressBarWidth,loadingText} from '@/utils/page-turning.js'
+import { goMyAppointments,handleWishClick,goProfile,goTestResults} from '@/utils/page-turning.js'
+import { throttle, runWhenIdle } from '@/utils/performance.js'
 
 const currentSlogan = ref(0)
 const isRefreshing = ref(false)
@@ -225,59 +208,27 @@ const hotlineDigits = hotlineNumber.split('')
 
 let interval = null
 let scrollInterval = null
-let progressTimer = null
 
 
 onMounted(async () => {
-  // 检查是否是从其他页面返回，避免重复加载
-  const skipLoading = uni.getStorageSync('skipHomeLoading')
-  if (skipLoading) {
-    isPageLoading.value = false
-    uni.removeStorageSync('skipHomeLoading')
-  } else {
-    showLoadingWithProgress(1000, '欢迎来到好朋友心理')
-  }
-  
-  // 检查登录状态
+  // 立即检查登录状态 - 优化：使用更快的方式
   const token = uni.getStorageSync('token')
   const userInfo = uni.getStorageSync('userInfo')
   
-  if (token && userInfo) {
-    isLoggedIn.value = true
+  isLoggedIn.value = !!(token && userInfo)
+  if (userInfo) {
     currentUserInfo.value = userInfo
-  } else {
-    isLoggedIn.value = false
   }
   
-  // 标语轮播
+  // 立即启动标语轮播
   interval = setInterval(() => {
     currentSlogan.value = (currentSlogan.value + 1) % slogans.length
   }, 3000)
   
-  //加载咨询师
-  try {
-    const res = await counselorAPI.getCounselorList()
-    console.log('咨询师API响应:', res)
-    
-    if (res && Array.isArray(res)) {
-      // 处理咨询师数据，转换为前端需要的格式
-      counselors.value = res.map(item => ({
-        id: item.id,
-        name: item.name,
-        level: item.level || '咨询师',
-        specialty: Array.isArray(item.specialty) ? item.specialty.join('、') : item.specialty || '心理咨询',
-        gender: item.gender === 'UNKNOWN' ? '未知' : (item.gender === 'MALE' ? '男' : item.gender === 'FEMALE' ? '女' : item.gender),
-        location: item.location || '未知',
-        rating: item.rating || 0,
-        avatar: item.avatar ? `${BASE_URL}/static/${item.avatar}` : '/static/logo.png'
-      }))
-      console.log('处理后的咨询师数据:', counselors.value)
-    }
-  } catch (error) {
-    console.error('获取咨询师列表失败:', error)
-  }
+  // 异步加载咨询师数据 - 不阻塞页面渲染
+  loadCounselorsAsync()
   
-  // 咨询师列表自动切换（只有咨询师超过6人时才滚动）
+  // 立即启动咨询师切换（即使数据还未加载也不影响）
   scrollInterval = setInterval(() => {
     if (counselors.value && counselors.value.length > 6) {
       counselorIndex.value = (counselorIndex.value + 6) % counselors.value.length
@@ -285,30 +236,54 @@ onMounted(async () => {
   }, 4000)
 })
 
+// 异步加载咨询师数据 - 分离出来避免阻塞
+async function loadCounselorsAsync() {
+  // 使用 runWhenIdle 在空闲时加载数据
+  runWhenIdle(async () => {
+    try {
+      const res = await counselorAPI.getCounselorList()
+      
+      if (res && Array.isArray(res)) {
+        // 优化：使用更高效的数组操作
+        counselors.value = res.map(item => ({
+          id: item.id,
+          name: item.name,
+          level: item.level || '咨询师',
+          specialty: Array.isArray(item.specialty) ? item.specialty.join('、') : item.specialty || '心理咨询',
+          gender: item.gender === 'UNKNOWN' ? '未知' : (item.gender === 'MALE' ? '男' : item.gender === 'FEMALE' ? '女' : item.gender),
+          location: item.location || '未知',
+          rating: item.rating || 0,
+          avatar: item.avatar ? `${BASE_URL}/static/${item.avatar}` : '/static/logo.png'
+        }))
+      }
+    } catch (error) {
+      console.error('获取咨询师列表失败:', error)
+      // 加载失败时显示默认数据，确保页面正常显示
+      counselors.value = []
+    }
+  })
+}
+
 onUnmounted(() => {
   clearInterval(interval)
   clearInterval(scrollInterval)
-  if (progressTimer) clearInterval(progressTimer)
 })
 
-function handleRefresh() {
+// 使用节流优化刷新功能
+const handleRefresh = throttle(() => {
   isRefreshing.value = true
   setTimeout(() => {
     isRefreshing.value = false
   }, 1000)
-}
+}, 2000) // 2秒内最多刷新一次
 
 // 咨询师点击处理
 function handleCounselorClick(counselor) {
   if (checkLoginAndShowModal('咨询师服务')) {
-    // 显示进度条加载动画
-    showLoadingWithProgress(1000, `正在查看${counselor.name}咨询师...`)
-    setTimeout(() => {
-      // 跳转到咨询师详情页面
-      uni.navigateTo({
-        url: `/pages/counselor/detail?counselorId=${counselor.id}&name=${counselor.name}`
-      })
-    }, 1000)
+    // 直接跳转到咨询师详情页面
+    uni.navigateTo({
+      url: `/pages/counselor/detail?counselorId=${counselor.id}&name=${counselor.name}`
+    })
   }
 }
 
@@ -319,20 +294,30 @@ function handleTestClick(testType) {
   })
 }
 
+// 跳转到测评页面
+function goTest(testType) {
+  if (testType === 'SDS') {
+    uni.navigateTo({
+      url: '/pages/test/sds'
+    })
+  } else if (testType === 'SAS') {
+    uni.navigateTo({
+      url: '/pages/test/sas'
+    })
+  }
+}
+
 // 心理推文点击处理
 function handleArticleClick(article) {
   checkAndGuideUser('心理推文功能', () => {
-    showLoadingWithProgress(1000, '正在打开心理推文...')
-    setTimeout(() => {
-      // 这里处理推文相关逻辑
-      console.log('点击了推文:', article)
-      // 临时显示开发中提示
-      uni.showToast({
-        title: '心理推文功能开发中',
-        icon: 'none',
-        duration: 2000
-      })
-    }, 500)
+    // 这里处理推文相关逻辑
+    console.log('点击了推文:', article)
+    // 临时显示开发中提示
+    uni.showToast({
+      title: '心理推文功能开发中',
+      icon: 'none',
+      duration: 2000
+    })
   })
 }
 
@@ -372,8 +357,27 @@ function closeLogin() {
 
 <style scoped>
 /* 你可以根据实际需求自定义样式，以下为简化版 */
-.bg-gradient { background: linear-gradient(135deg, #ecb198 0%, #e2beeb 50%, #b5d9ee 100%); min-height: 100vh; }
-.header { display: flex; align-items: center; justify-content: center; padding: 24rpx; background: rgba(255,255,255,0.8); border-bottom: 1px solid #f8bbd0; }
+.bg-gradient {
+  background: linear-gradient(135deg, #ecb198 0%, #e2beeb 50%, #b5d9ee 100%);
+  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  /* 性能优化：启用硬件加速 */
+  transform: translateZ(0);
+  will-change: auto;
+}
+.header { 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  padding: 24rpx; 
+  background: rgba(255,255,255,0.8); 
+  border-bottom: 1px solid #f8bbd0;
+  /* 性能优化：避免重绘 */
+  contain: layout style;
+}
 .main-title {
   font-size: 54rpx;
   font-weight: 900;
@@ -385,103 +389,13 @@ function closeLogin() {
   text-shadow: 0 4rpx 12rpx #f8bbd0, 0 2rpx 0 #fff;
 }
 
-.global-loading-mask {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 50%, #e8f5e8 100%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-
-.loading-progress-bar-info {
-  margin-bottom: 40rpx;
-}
-
-.loading-progress-text {
-  font-size: 48rpx;
-  font-weight: bold;
-  background: linear-gradient(135deg, #ec407a, #ab47bc);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.loading-progress-bar-wrap-bottom {
-  width: 400rpx;
-  height: 8rpx;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 4rpx;
-  overflow: hidden;
-  margin-bottom: 80rpx;
-}
-
-.loading-progress-bar {
-  height: 100%;
-  background: linear-gradient(135deg, #ec407a, #ab47bc);
-  border-radius: 4rpx;
-  transition: width 0.1s ease;
-}
-
-.loading-logo {
-  width: 120rpx;
-  height: 120rpx;
-  margin-bottom: 32rpx;
-  border-radius: 50%;
-  box-shadow: 0 8rpx 24rpx rgba(236, 64, 122, 0.3);
-}
-
-.loading-title {
-  font-size: 48rpx;
-  font-weight: 900;
-  background: linear-gradient(135deg, #ec407a, #ab47bc);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  margin-bottom: 48rpx;
-}
-
-.loading-spinner {
-  display: flex;
-  gap: 8rpx;
-  margin-bottom: 24rpx;
-}
-
-.loading-spinner .dot {
-  width: 12rpx;
-  height: 12rpx;
-  background: #ec407a;
-  border-radius: 50%;
-  animation: loading-bounce 1.4s ease-in-out infinite both;
-}
-
-.loading-spinner .dot:nth-child(1) { animation-delay: -0.32s; }
-.loading-spinner .dot:nth-child(2) { animation-delay: -0.16s; }
-
-@keyframes loading-bounce {
-  0%, 80%, 100% { 
-    transform: scale(0.8);
-    opacity: 0.5;
-  }
-  40% { 
-    transform: scale(1.2);
-    opacity: 1;
-  }
-}
-
-.loading-text {
-  font-size: 28rpx;
-  color: #666;
-  font-weight: 500;
-}
-
 .slogan { font-size: 36rpx; color: #666; font-weight: 500; }
-.main-content { padding: 32rpx 24rpx 160rpx; } /* 增加底部间距避免被导航栏遮挡 */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32rpx 24rpx 160rpx;
+  box-sizing: border-box;
+}
 .section { margin-bottom: 32rpx; }
 .section-title { display: flex; align-items: center; gap: 12rpx; font-size: 32rpx; font-weight: bold; color: #333; margin-bottom: 16rpx; }
 .badge { background: #fce4ec; color: #d81b60; font-size: 22rpx; border-radius: 8rpx; padding: 4rpx 12rpx; }
@@ -509,6 +423,10 @@ function closeLogin() {
   width: 91%;
   min-height: 80rpx;
   margin-bottom: 0;
+  /* 性能优化：启用硬件加速和合成层 */
+  transform: translateZ(0);
+  will-change: transform;
+  contain: layout style;
 }
 .hotline-bar {
   width: 60rpx;

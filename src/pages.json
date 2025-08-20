@@ -84,6 +84,20 @@
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "好朋友心理",
 		"navigationBarBackgroundColor": "#F8F8F8",
-		"backgroundColor": "#F8F8F8"
+		"backgroundColor": "#F8F8F8",
+		"renderingMode": "seperated",
+		"pageOrientation": "portrait",
+		"animationType": "pop-in",
+		"animationDuration": 200
+	},
+	"condition": {
+		"current": 0,
+		"list": []
+	},
+	"preloadRule": {
+		"pages/index/index": {
+			"network": "all",
+			"packages": ["pages/login/login", "pages/wish/wish", "pages/test/results"]
+		}
 	}
 }

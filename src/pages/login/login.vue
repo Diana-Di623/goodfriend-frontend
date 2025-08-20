@@ -104,7 +104,6 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { userAPI,BASE_URL } from '@/utils/api.js'
-import { goBrowse } from '@/utils/page-turning.js'
 
 // 登录类型
 const loginType = ref('user') // 'user' 或 'counselor'
@@ -157,6 +156,13 @@ function switchLoginType(type) {
 // 切换协议同意状态
 function toggleTerms() {
   termsAccepted.value = !termsAccepted.value
+}
+
+// 先逛一逛功能 - 跳转到首页
+function goBrowse() {
+  uni.reLaunch({
+    url: '/pages/index/index'
+  })
 }
 
 // 发送验证码

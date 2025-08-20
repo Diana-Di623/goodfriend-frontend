@@ -1,22 +1,5 @@
 <template>
   <view class="appointments-page">
-    <!-- 全局加载遮罩 -->
-    <view v-if="isPageLoading" class="global-loading-mask">
-      <view class="loading-progress-bar-info">
-        <text class="loading-progress-text">{{ Math.round(progressBarWidth) }}%</text>
-      </view>
-      <view class="loading-progress-bar-wrap-bottom">
-        <view class="loading-progress-bar" :style="{ width: progressBarWidth + '%' }"></view>
-      </view>
-      <image class="loading-logo" src="/static/logo.png" mode="aspectFit" />
-      <text class="loading-title">好朋友心理</text>
-      <view class="loading-spinner">
-        <view class="dot"></view>
-        <view class="dot"></view>
-        <view class="dot"></view>
-      </view>
-      <text class="loading-text">{{ loadingText }}</text>
-    </view>
 
     <!-- 头部 -->
     <view class="header">
@@ -237,14 +220,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 
-// 进度条相关
-const isPageLoading = ref(false)
-const progressBarWidth = ref(0)
-const loadingText = ref('加载中...')
-
-// 进度条定时器
-let progressTimer = null
-
 // 过滤选项
 const filterOptions = [
   { label: '全部', value: 'all' },
@@ -370,29 +345,9 @@ onMounted(() => {
   loadAppointments()
 })
 
-// 封装全局 loading 动画启动
-function showLoadingWithProgress(duration = 500, text = '加载中...') {
-  isPageLoading.value = true
-  progressBarWidth.value = 0
-  loadingText.value = text
-  if (progressTimer) clearInterval(progressTimer)
-  setTimeout(() => {
-    let start = Date.now()
-    progressTimer = setInterval(() => {
-      const elapsed = Date.now() - start
-      let percent = Math.min(100, (elapsed / duration) * 100)
-      progressBarWidth.value = percent
-      if (percent >= 100) {
-        clearInterval(progressTimer)
-        isPageLoading.value = false
-      }
-    }, 16)
-  }, 30)
-}
-
 // 加载预约数据
 function loadAppointments() {
-  showLoadingWithProgress(800, '加载预约数据...')
+  // 直接加载数据，无动画
 }
 
 // 切换过滤器

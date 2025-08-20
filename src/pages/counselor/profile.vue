@@ -1,22 +1,5 @@
 <template>
   <view class="counselor-profile-page">
-    <!-- 全局加载遮罩 -->
-    <view v-if="isPageLoading" class="global-loading-mask">
-      <view class="loading-progress-bar-info">
-        <text class="loading-progress-text">{{ Math.round(progressBarWidth) }}%</text>
-      </view>
-      <view class="loading-progress-bar-wrap-bottom">
-        <view class="loading-progress-bar" :style="{ width: progressBarWidth + '%' }"></view>
-      </view>
-      <image class="loading-logo" src="/static/logo.png" mode="aspectFit" />
-      <text class="loading-title">好朋友心理</text>
-      <view class="loading-spinner">
-        <view class="dot"></view>
-        <view class="dot"></view>
-        <view class="dot"></view>
-      </view>
-      <text class="loading-text">{{ loadingText }}</text>
-    </view>
 
     <!-- 头部 -->
     <view class="header">
@@ -587,13 +570,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import API from '@/utils/api.js'
-import { showLoadingWithProgress, goMyAppointments } from '@/utils/page-turning.js'
+import { goMyAppointments } from '@/utils/page-turning.js'
 
-
-// 进度条相关
-const isPageLoading = ref(false)
-const progressBarWidth = ref(0)
-const loadingText = ref('加载中...')
 
 // 强制更新标志
 const forceUpdateKey = ref(0)
@@ -734,8 +712,6 @@ function getGenderDisplay(gender) {
 
 // 加载咨询师信息
 async function loadCounselorInfo() {
-  showLoadingWithProgress(800, '加载个人信息...')
-  
   try {
     // 首先尝试从后端API获取咨询师信息
     console.log('正在从API加载咨询师信息...')

@@ -1,23 +1,5 @@
 <template>
   <view class="results-page">
-    <!-- 全局加载遮罩 -->
-    <view v-if="isPageLoading" class="global-loading-mask">
-      <view class="loading-progress-bar-info">
-        <text class="loading-progress-text">{{ Math.round(progressBarWidth) }}%</text>
-      </view>
-      <view class="loading-progress-bar-wrap-bottom">
-        <view class="loading-progress-bar" :style="{ width: progressBarWidth + '%' }"></view>
-      </view>
-      <image class="loading-logo" src="/static/logo.png" mode="aspectFit" />
-      <text class="loading-title">好朋友心理</text>
-      <view class="loading-spinner">
-        <view class="dot"></view>
-        <view class="dot"></view>
-        <view class="dot"></view>
-      </view>
-      <text class="loading-text">{{ loadingText }}</text>
-    </view>
-
     <!-- 最近结果 -->
     <view class="latest-results-section">
       <view class="results-header">
@@ -250,7 +232,7 @@ import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { testAPI } from '@/utils/api.js'
 import {unreadMessageCount }from '@/utils/constants.js'
-import {goHome,goProfile,handleWishClick, progressBarWidth,goMyAppointments,isPageLoading,loadingText} from '@/utils/page-turning.js'
+import {goHome,goProfile,handleWishClick,goMyAppointments} from '@/utils/page-turning.js'
 // 历史记录数据 - 从localStorage获取实际测评记录
 const historyRecords = ref([])
 // 最新测评结果

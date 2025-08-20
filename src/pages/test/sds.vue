@@ -146,17 +146,17 @@ const questions = ref([
 ])
 
 onMounted(() => {
-  // 检查登录状态
+  // 优化：立即检查登录状态，减少延迟
   const token = uni.getStorageSync('token')
   if (!token) {
     uni.showToast({
       title: '请先登录',
       icon: 'none',
-      duration: 2000
+      duration: 1500
     })
-    setTimeout(() => {
-      uni.navigateBack()
-    }, 2000)
+    // 优化：立即返回，不需要等待
+    uni.navigateBack()
+    return
   }
 })
 

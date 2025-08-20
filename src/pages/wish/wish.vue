@@ -1,18 +1,5 @@
 <template>
   <view class="min-h-screen bg-gradient">
-    <!-- 全局加载遮罩 -->
-    <view v-if="isPageLoading" class="global-loading-mask">
-      <view class="loading-progress-bar-info">
-        <text class="loading-progress-text">{{ Math.round(progressBarWidth) }}%</text>
-      </view>
-      <view class="loading-progress-bar-wrap-bottom">
-        <view class="loading-progress-bar" :style="{ width: progressBarWidth + '%' }"></view>
-      </view>
-      <image class="loading-logo" src="/static/logo.png" mode="aspectFit" />
-      <text class="loading-title">好朋友心理</text>
-      <text class="loading-text">{{ loadingText }}</text>
-    </view>
-
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-content">
@@ -181,7 +168,6 @@ import { ref, onMounted } from 'vue'
 import { onShow, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 import { storageUtils, wishAPI } from '@/utils/api.js'
 import {unreadMessageCount }from '@/utils/constants.js'
-import { showLoadingWithProgress,isPageLoading, progressBarWidth, loadingText } from '@/utils/page-turning.js'
 
 // 数据定义
 const comments = ref([])
@@ -263,12 +249,7 @@ const emojis = [
 
 // 方法定义
 function goBack() {
-  // 显示进度条加载动画
-  showLoadingWithProgress(800, '正在返回...')
-  
-  setTimeout(() => {
-    uni.navigateBack()
-  }, 800)
+  uni.navigateBack()
 }
 
 // 加载心愿心语列表
@@ -451,14 +432,22 @@ async function handleSubmit() {
   }
 }
 
+// 页面加载标志，避免重复加载
+const isInitialized = ref(false)
+
 onMounted(() => {
   console.log('心愿心语页面加载完成')
-  loadWishList(true)
+  if (!isInitialized.value) {
+    loadWishList(true)
+    isInitialized.value = true
+  }
 })
 
 onShow(() => {
-  // 页面显示时刷新数据
-  loadWishList(true)
+  // 只有在非首次加载时才刷新数据，避免重复请求
+  if (isInitialized.value) {
+    loadWishList(true)
+  }
 })
 
 // 页面生命周期函数
