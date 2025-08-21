@@ -111,6 +111,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { testAPI } from '@/utils/api.js'
+import { goTestResults } from '@/utils/page-turning.js'
 
 const currentQuestion = ref(0)
 const answers = ref({})
@@ -323,6 +324,9 @@ function saveResult() {
       icon: 'success',
       duration: 1000
     })
+      setTimeout(() => {
+        goTestResults()
+      }, 500)
   }).catch(() => {
     uni.showToast({
       title: '保存失败',
@@ -330,12 +334,7 @@ function saveResult() {
       duration: 1000
     })
   })
-  
-  setTimeout(() => {
-    uni.navigateTo({
-      url: '/pages/test/results'
-    })
-  }, 2000)
+
 }
 </script>
 

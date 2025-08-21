@@ -82,7 +82,7 @@ function no_head_request(url, options = {}) {
         console.log('响应数据:', JSON.stringify(res.data, null, 2))
         console.log('==================')
 
-        if (res.statusCode === 200) {
+        if (res.statusCode >= 200 &&res.statusCode <300) {
           resolve(res.data)
         } else {
           reject(res)
@@ -132,8 +132,8 @@ function request(url, options = {}) {
         console.log('响应头:', JSON.stringify(res.header, null, 2))
         console.log('响应数据:', JSON.stringify(res.data, null, 2))
         console.log('==================')
-        
-        if (res.statusCode === 200) {
+
+        if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(res.data)
         } else {
           reject(res)
@@ -235,7 +235,8 @@ export const userAPI = {
       method: 'GET'
     })
   },
-  
+}
+export const appointmentAPI = {
   // 创建预约
   createAppointment(appointmentData) {
     return request('/api/user/appointments', {
@@ -248,6 +249,13 @@ export const userAPI = {
   getUserAppointments() {
     return request('/api/user/appointments', {
       method: 'GET'
+    })
+  },
+
+  // 删除用户预约
+  deleteUserAppointments(appointmentId) {
+    return request(`/api/user/appointments/${appointmentId}`, {
+      method: 'DELETE'
     })
   }
 }
@@ -269,10 +277,18 @@ export const testAPI = {
       method: 'GET',
     })
   },
-  
-  // 获取测评历史
-  getTestHistory(testType) {
-    return request(`/test/history?type=${testType}`)
+  //删除所有测评历史
+  deleteAllTestHistory() {
+    return request('/api/user/tests?all=true', {
+      method: 'DELETE',
+    })
+  },
+
+  // 删除测评历史
+  deleteTestHistory(testId) {
+    return request(`/api/user/tests/${testId}`, {
+      method: 'DELETE'
+    })
   }
 }
 
@@ -317,6 +333,13 @@ export const counselorAPI = {
   // 获取当前咨询师信息
   getConsultantProfile() {
     return request('/api/consultant/profile', {
+      method: 'GET'
+    })
+  },
+  
+  // 咨询师查看自己的预约列表
+  listMyAppointments() {
+    return request('/api/consultant/appointments', {
       method: 'GET'
     })
   },
@@ -388,11 +411,27 @@ export const counselorAPI = {
       })
     })
   },
-  
+  listMyAppointments() {
+    return request('/api/consultant/appointments', {
+      method: 'GET'
+    })
+  },
   // 获取咨询师申请反馈
   getConsultantApplications() {
     return request('/api/user/consultant/applications', {
       method: 'GET'
+    })
+  },
+  confirmMyAppointments(id){
+    return request(`/api/consultant/appointments/${id}/confirm`,{
+      method:'POST'
+    })
+  },
+  // 咨询师取消预约并返回取消原因
+  cancelMyAppointments(id, reason) {
+    return request(`/api/consultant/appointments/${id}`, {
+      method: 'DELETE',
+      data: { reason }
     })
   }
 }

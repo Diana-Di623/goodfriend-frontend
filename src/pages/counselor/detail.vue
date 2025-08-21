@@ -306,13 +306,14 @@
           </view>
           
           <view class="form-section">
-            <text class="form-label">备注</text>
+            <text class="form-label">问题描述</text>
             <textarea 
               v-model="appointmentData.note" 
               class="note-input" 
-              placeholder="请输入预约备注（可选）"
-              maxlength="200"
+              placeholder="请输入您的情况，方便咨询师了解（可选，最多500字）"
+              maxlength="500"
             ></textarea>
+            <text class="char-count">{{ appointmentData.note.length }}/500</text>
           </view>
         </view>
         
@@ -333,8 +334,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { counselorAPI, userAPI, BASE_URL } from '@/utils/api.js'
-import { goBack} from '@/utils/page-turning.js'
+import { counselorAPI,appointmentAPI,BASE_URL} from '@/utils/api.js'
+import { goBack,goMyAppointments } from '@/utils/page-turning.js'
 
 const showAllTopics = ref(false)
 const expandedReviews = ref(new Set()) // 管理展开的评论
@@ -547,8 +548,8 @@ async function confirmAppointment() {
   // 构造请求数据
   const requestData = {
     consultantId: parseInt(counselor.value.id),
-    startTime: `${appointmentData.value.startDate} ${appointmentData.value.startTime}:00`,
-    endTime: `${appointmentData.value.startDate} ${endTime}:00`,
+    startTime: `${appointmentData.value.startDate}T${appointmentData.value.startTime}:00`,
+    endTime: `${appointmentData.value.startDate}T${endTime}:00`,
     note: appointmentData.value.note || ''
   }
   
@@ -557,7 +558,7 @@ async function confirmAppointment() {
   isSubmittingAppointment.value = true
   
   try {
-    const response = await userAPI.createAppointment(requestData)
+    const response = await appointmentAPI.createAppointment(requestData)
     console.log('预约响应:', response)
     
     uni.showToast({
@@ -567,6 +568,7 @@ async function confirmAppointment() {
     
     // 关闭模态框并重置数据
     cancelAppointment()
+    goMyAppointments()
     
   } catch (error) {
     console.error('预约失败:', error)

@@ -167,11 +167,16 @@
               </view>
               <text class="type-name">{{ record.typeName }}</text>
             </view>
-            <view class="date-time-info">
-              <text class="date-icon">📅</text>
-              <text class="date-text">{{ record.date }}</text>
-              <text class="time-icon">🕐</text>
-              <text class="time-text">{{ record.time }}</text>
+            <view class="header-right">
+              <view class="date-time-info">
+                <text class="date-icon">📅</text>
+                <text class="date-text">{{ record.date }}</text>
+                <text class="time-icon">🕐</text>
+                <text class="time-text">{{ record.time }}</text>
+              </view>
+              <view class="delete-btn" @click="deleteTestHistory(record.id, record.type)">
+                <text class="delete-icon">🗑️</text>
+              </view>
             </view>
           </view>
           
@@ -343,30 +348,60 @@ async function loadHistoryRecords() {
 }
 
 // 更新最新测评结果显示
-function updateLatestResults(results) {
+function updateLatestResults(results = null) {
+  // 如果没有传入结果，使用当前的历史记录
+  const dataToUse = results || historyRecords.value
+  
   // 找到最新的SAS和SDS结果
-  latestSasResult.value = results.find(item => item.type === 'SAS') || null
-  latestSdsResult.value = results.find(item => item.type === 'SDS') || null
+  latestSasResult.value = dataToUse.find(item => item.type === 'SAS') || null
+  latestSdsResult.value = dataToUse.find(item => item.type === 'SDS') || null
   
   console.log('更新最新结果:', {
     sasResult: latestSasResult.value,
     sdsResult: latestSdsResult.value,
-    totalResults: results.length
+    totalResults: dataToUse.length
   })
 }
 
-// 清空历史记录
-function clearHistory() {
-  historyRecords.value = []
-  latestSasResult.value = null
-  latestSdsResult.value = null
-  
-  try {
-    uni.removeStorageSync('testResults')
-  } catch (error) {
-    console.error('清空历史记录失败:', error)
-  }
-  uni.showToast({ title: '历史记录已清空', icon: 'success' })
+// 删除单条测评记录
+async function deleteTestHistory(testId, testType) {
+  uni.showModal({
+    title: '确认删除',
+    content: `确定要删除这条${testType}测评记录吗？`,
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          await testAPI.deleteTestHistory(testId)
+          
+          // 从本地数据中移除
+          historyRecords.value = historyRecords.value.filter(record => record.id !== testId)
+          
+          // 更新最新结果
+          updateLatestResults()
+          
+          // 更新本地存储
+          try {
+            const existingResults = uni.getStorageSync('testResults') || []
+            const updatedResults = existingResults.filter(result => result.id !== testId)
+            uni.setStorageSync('testResults', updatedResults)
+          } catch (error) {
+            console.error('更新本地存储失败:', error)
+          }
+          
+          uni.showToast({
+            title: '删除成功',
+            icon: 'success'
+          })
+        } catch (error) {
+          console.error('删除测评记录失败:', error)
+          uni.showToast({
+            title: '删除失败',
+            icon: 'none'
+          })
+        }
+      }
+    }
+  })
 }
 
 // 跳转到咨询师详情页
@@ -418,12 +453,16 @@ function showClearDialog() {
     content: '此操作将永久删除所有历史测评记录，无法恢复。您确定要继续吗？',
     success: (res) => {
       if (res.confirm) {
-        clearHistory()
+        testAPI.deleteAllTestHistory().then(() => {
+          loadHistoryRecords() // 清空后刷新
+          uni.showToast({ title: '已清空', icon: 'success' })
+        }).catch(() => {
+          uni.showToast({ title: '清空失败', icon: 'none' })
+        })
       }
     }
   })
 }
-
 // 获取分数颜色类名
 function getScoreColorClass(score, type) {
   if (type === "SAS") {
@@ -943,6 +982,34 @@ onShow(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24rpx;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.delete-btn {
+  padding: 8rpx;
+  border-radius: 8rpx;
+  background: rgba(244, 67, 54, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32rpx;
+  min-height: 32rpx;
+  transition: all 0.2s ease;
+}
+
+.delete-btn:active {
+  background: rgba(244, 67, 54, 0.2);
+  transform: scale(0.95);
+}
+
+.delete-icon {
+  font-size: 20rpx;
+  color: #f44336;
 }
 
 .type-info {

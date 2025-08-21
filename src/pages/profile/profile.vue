@@ -507,19 +507,7 @@ const regionLabels = REGION_OPTIONS.map(item => item.label)
 const selectedRegionIndex = ref(-1)
 
 // 用户信息
-const userInfo = ref({
-  avatar: '',
-  nickname: '',
-  gender: '', // 只能是 '男' 或 '女'
-  birthday: '', // 生日
-  location: '', // 所在地区
-  customLocation: '', // 自定义地区（当选择"其他"时）
-  phone: '',
-  hobbies: '',
-  selectedAvatarFile: '', // 保存选中的头像文件名，用于后端提交
-  consultationMethods: [], // 咨询方式
-  availability: '' // 可用时间
-})
+const userInfo = ref({})
 
 // 头像选择相关
 const showAvatarModal = ref(false)

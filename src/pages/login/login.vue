@@ -302,7 +302,7 @@ async function performLogin() {
       
       const userInfo = {
         phone: phoneNumber.value,
-        nickname: '用户' + phoneNumber.value.slice(-4),
+        nickname: '',
         avatar: `${BASE_URL}/static/user/avatars/default.jpg`,
         loginTime: new Date().toISOString(),
         userType: loginType.value,

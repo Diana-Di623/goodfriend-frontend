@@ -106,12 +106,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { testAPI } from '@/utils/api.js'
+import { goTestResults } from '@/utils/page-turning.js'
 
 const currentQuestion = ref(0)
 const answers = ref({})
 const showResult = ref(false)
 const rawScore = ref(0)
 const standardScore = ref(0)
+const saving = ref(false) // 新增：保存中状态
 
 // 答题选项
 const options = [
@@ -221,7 +223,6 @@ function calculateResult() {
   // SDS标准分 = 粗分 × 1.25，四舍五入到整数
   standardScore.value = Math.round(total * 1.25)
   showResult.value = true
-  saveResult() // 自动保存结果
 }
 
 function getDepressionLevel() {
@@ -284,10 +285,13 @@ function retakeTest() {
   standardScore.value = 0
 }
 
+
 function saveResult() {
+  if (saving.value) return // 防止重复点击
+  saving.value = true
   // 保存测评结果到本地
   const result = {
-    testType: 'SDS',
+    testType: 'SAS',
     rawScore: rawScore.value,
     standardScore: standardScore.value,
     level: getDepressionLevel(),
@@ -306,7 +310,7 @@ function saveResult() {
   if (currentLoginTime) {
     uni.setStorageSync('testDataLoginTime', currentLoginTime)
   }
-  
+  // 只传 testName 和 score 给后端
   testAPI.postSaveTestResult({
     testName: 'SDS',
     score: standardScore.value
@@ -316,6 +320,9 @@ function saveResult() {
       icon: 'success',
       duration: 1000
     })
+      setTimeout(() => {
+        goTestResults()
+      }, 500)
   }).catch(() => {
     uni.showToast({
       title: '保存失败',
@@ -323,10 +330,7 @@ function saveResult() {
       duration: 1000
     })
   })
-  
-  setTimeout(() => {
-    uni.navigateBack()
-  }, 2000)
+
 }
 </script>
 

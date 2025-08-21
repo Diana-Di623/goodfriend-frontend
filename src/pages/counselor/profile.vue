@@ -612,7 +612,7 @@ const editingSpecialties = ref([])
 const editingCustomSpecialties = ref([])
 const editingStats = ref({})
 const editingPublicSettings = ref({})
-
+const counselorInfo = ref({})
 // 可选择的擅长领域
 const availableSpecialties = ref([
   '焦虑抑郁', '情感关系', '职场压力', '亲子教育', '婚姻家庭',
@@ -620,81 +620,6 @@ const availableSpecialties = ref([
   '强迫障碍', '恐惧症', '睡眠障碍', '成瘾行为', '青少年心理',
   '老年心理', '女性心理', '危机干预', '心理评估', '认知行为治疗'
 ])
-
-// 咨询师信息
-const counselorInfo = ref({
-  // 基础信息
-  avatar: '',
-  realName: '',
-  name: '', // 用户端显示的姓名，与 realName 保持一致
-  title: '心理咨询师',
-  rating: '5.0',
-  experience: '3',
-  price: 300, // 咨询费用，与 hourlyRate 保持一致
-  location: ' ', // 地区信息
-  gender: 'FEMALE', // 性别 - 使用后端期望的格式
-  
-  // 专业信息
-  specialties: [],
-  credentials: [], // 资质证书简化显示
-  bio: '我是一名专业的心理咨询师，拥有3年的临床咨询经验。擅长处理焦虑、抑郁、情感问题等心理困扰。秉承人本主义咨询理念，致力于为每一位来访者提供温暖、专业的心理支持。',
-  
-  // 详细履历
-  educationList: [
-    {
-      degree: '硕士',
-      school: '北京师范大学',
-      major: '应用心理学',
-      year: '2018-2021'
-    },
-    {
-      degree: '本科',
-      school: '华东师范大学',
-      major: '心理学',
-      year: '2014-2018'
-    }
-  ],
-  experienceList: [
-    {
-      company: '北京心理健康中心',
-      position: '心理咨询师',
-      duration: '2021年至今',
-      description: '负责个体心理咨询，主要处理焦虑、抑郁、人际关系等问题'
-    }
-  ],
-  certificates: [
-    {
-      name: '国家三级心理咨询师',
-      number: 'XL202100001',
-      issuer: '中国心理学会',
-      date: '2021年06月'
-    }
-  ],
-  
-  // 统计数据
-  stats: {
-    caseHours: 1200, // 个案时长
-    experience: 3, // 从业年限（与 experience 字段同步）
-    trainingHours: 300, // 受训时长
-    supervisionHours: 120 // 督导时长
-  },
-  
-  // 咨询设置
-  hourlyRate: '300',
-  consultationMethods: ['面对面', '视频咨询', '电话咨询'],
-  availableTime: '周一至周五 9:00-18:00，周末 10:00-16:00',
-  
-  // 用户端显示数据
-  topics: [ // 咨询感受/擅长领域统计
-    { name: '焦虑抑郁', count: 45 },
-    { name: '情感关系', count: 32 },
-    { name: '职场压力', count: 28 },
-    { name: '人际关系', count: 20 },
-    { name: '情绪管理', count: 15 },
-    { name: '学业压力', count: 12 }
-  ],
-  reviews: [] // 用户评价，由系统管理
-})
 
 onMounted(() => {
   loadCounselorInfo()
@@ -764,31 +689,6 @@ async function loadCounselorInfo() {
           experience: typeof data.experienceYears === 'number' ? data.experienceYears : (typeof data.experience === 'number' ? data.experience : (counselorInfo.value.experience || 0)),
           consultationCount: typeof data.consultationCount === 'number' ? data.consultationCount : (typeof data.caseHours === 'number' ? data.caseHours : (counselorInfo.value.consultationCount || 0))
         }
-        
-        console.log('更新后的咨询师信息:', counselorInfo.value)
-        console.log('头像信息检查:')
-        console.log('- API原始头像字段:', {
-          avatar: data.avatar,
-          avatarUrl: data.avatarUrl,
-          photo: data.photo,
-          profilePicture: data.profilePicture
-        })
-        console.log('- 价格字段检查:', {
-          pricePerHour: data.pricePerHour,
-          hourlyRate: data.hourlyRate,
-          最终hourlyRate: counselorInfo.value.hourlyRate,
-          最终price: counselorInfo.value.price
-        })
-        console.log('- 统计数据字段检查:', {
-          consultationCount: data.consultationCount,
-          experienceYears: data.experienceYears,
-          trainingHours: data.trainingHours,
-          supervisionHours: data.supervisionHours,
-          最终stats: counselorInfo.value.stats
-        })
-        console.log('- 原始头像路径:', rawAvatarUrl)
-        console.log('- 处理后的头像URL:', processedAvatarUrl)
-        console.log('- 最终使用的头像URL:', counselorInfo.value.avatar)
         return
       }
     }
@@ -893,14 +793,10 @@ function chooseAvatar() {
         if (newAvatarUrl) {
           // 使用API.processAvatarUrl处理返回的头像URL
           counselorInfo.value.avatar = API.processAvatarUrl(newAvatarUrl)
-          console.log('使用服务器返回的头像URL:', newAvatarUrl)
-          console.log('处理后的头像URL:', counselorInfo.value.avatar)
         } else {
           // 如果API没有返回新的URL，但上传成功，暂时使用本地路径
           counselorInfo.value.avatar = filePath
-          console.log('服务器未返回头像URL，使用本地路径:', filePath)
         }
-        console.log('===========================')
         
         uni.hideLoading()
         uni.showToast({
@@ -909,7 +805,6 @@ function chooseAvatar() {
         })
         
         // 保存更新后的咨询师信息到服务器
-        console.log('头像上传成功，正在保存信息到服务器...')
         try {
           await saveCounselorInfo()
           console.log('咨询师信息已保存到服务器')
@@ -1257,7 +1152,13 @@ function saveSpecialties() {
     })
     return
   }
-  
+  if (allSpecialties.length > 10) {
+    uni.showToast({
+      title: '最多选择10个擅长领域',
+      icon: 'none'
+    })
+    return
+  }
   counselorInfo.value.specialties = allSpecialties
   saveCounselorInfo()
   showSpecialtiesModal.value = false

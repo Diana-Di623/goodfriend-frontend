@@ -66,8 +66,8 @@
                 class="user-avatar"
               />
               <view class="user-details">
-                <text class="user-name">{{ appointment.userName }}</text>
-                <text class="user-tag">{{ appointment.userAge }}岁 · {{ appointment.userGender }}</text>
+                <text class="user-name">预约 #{{ appointment.id }}</text>
+                <text class="user-tag">咨询师：{{ appointment.consultantName }}</text>
               </view>
             </view>
             <view class="appointment-status" :class="appointment.status">
@@ -78,11 +78,11 @@
           <view class="appointment-info">
             <view class="info-row">
               <text class="info-icon">📅</text>
-              <text class="info-text">{{ appointment.date }} {{ appointment.time }}</text>
+              <text class="info-text">{{ formatDate(appointment.startTime) }} {{ formatTimeRange(appointment.startTime, appointment.endTime) }}</text>
             </view>
             <view class="info-row">
               <text class="info-icon">💭</text>
-              <text class="info-text">{{ appointment.consultationType }}</text>
+              <text class="info-text">{{ appointment.note || '无备注' }}</text>
             </view>
             <view class="info-row">
               <text class="info-icon">⏱️</text>
@@ -92,18 +92,18 @@
 
           <view class="appointment-actions">
             <button 
-              v-if="appointment.status === 'pending'"
+              v-if="appointment.status === 'PENDING'"
               class="action-btn confirm-btn"
               @click.stop="confirmAppointment(appointment.id)"
             >
               确认接诊
             </button>
             <button 
-              v-if="appointment.status === 'confirmed'"
-              class="action-btn start-btn"
-              @click.stop="startConsultation(appointment.id)"
+              v-if="appointment.status === 'PENDING' || appointment.status === 'CONFIRMED'"
+              class="action-btn cancel-btn"
+              @click.stop="cancelAppointment(appointment.id)"
             >
-              开始咨询
+              取消预约
             </button>
             <button 
               class="action-btn detail-btn"
@@ -146,9 +146,9 @@
                 class="profile-avatar"
               />
               <view class="profile-info">
-                <text class="profile-name">{{ selectedAppointment?.userName }}</text>
-                <text class="profile-details">{{ selectedAppointment?.userAge }}岁 · {{ selectedAppointment?.userGender }}</text>
-                <text class="profile-phone">{{ selectedAppointment?.userPhone }}</text>
+                <text class="profile-name">预约 #{{ selectedAppointment?.id }}</text>
+                <text class="profile-details">咨询师：{{ selectedAppointment?.consultantName }}</text>
+                <text class="profile-phone">创建时间：{{ formatDate(selectedAppointment?.createdAt) }}</text>
               </view>
             </view>
           </view>
@@ -157,25 +157,20 @@
             <text class="section-title">预约信息</text>
             <view class="detail-item">
               <text class="detail-label">预约时间</text>
-              <text class="detail-value">{{ selectedAppointment?.date }} {{ selectedAppointment?.time }}</text>
+              <text class="detail-value">{{ formatDate(selectedAppointment?.startTime) }} {{ formatTimeRange(selectedAppointment?.startTime, selectedAppointment?.endTime) }}</text>
             </view>
             <view class="detail-item">
-              <text class="detail-label">咨询类型</text>
-              <text class="detail-value">{{ selectedAppointment?.consultationType }}</text>
+              <text class="detail-label">问题描述</text>
+              <text class="detail-value">{{ selectedAppointment?.note || '无备注' }}</text>
             </view>
             <view class="detail-item">
-              <text class="detail-label">预约时长</text>
-              <text class="detail-value">{{ selectedAppointment?.duration }}分钟</text>
+              <text class="detail-label">预约状态</text>
+              <text class="detail-value">{{ getStatusText(selectedAppointment?.status) }}</text>
             </view>
             <view class="detail-item">
               <text class="detail-label">咨询方式</text>
               <text class="detail-value">{{ selectedAppointment?.method }}</text>
             </view>
-          </view>
-
-          <view class="detail-section">
-            <text class="section-title">用户问题描述</text>
-            <text class="problem-description">{{ selectedAppointment?.problemDescription }}</text>
           </view>
 
           <view class="detail-section" v-if="selectedAppointment?.testResults?.length > 0">
@@ -187,29 +182,28 @@
             >
               <view class="test-header">
                 <text class="test-name">{{ result.testName }}</text>
-                <text class="test-date">{{ result.date }}</text>
+                <text class="test-date">{{ formatDate(result.createdAt) }}</text>
               </view>
               <text class="test-score">得分：{{ result.score }}</text>
-              <text class="test-level" :class="result.level.toLowerCase()">{{ result.interpretation }}</text>
             </view>
           </view>
         </scroll-view>
         
         <view class="modal-footer">
-          <button class="modal-btn cancel-btn" @click="closeDetailModal">关闭</button>
+          <button class="modal-btn cancel-modal-btn" @click="closeDetailModal">关闭</button>
           <button 
-            v-if="selectedAppointment?.status === 'pending'"
+            v-if="selectedAppointment?.status === 'PENDING'"
             class="modal-btn confirm-btn"
             @click="confirmAppointment(selectedAppointment.id)"
           >
             确认接诊
           </button>
           <button 
-            v-if="selectedAppointment?.status === 'confirmed'"
-            class="modal-btn start-btn"
-            @click="startConsultation(selectedAppointment.id)"
+            v-if="selectedAppointment?.status === 'PENDING' || selectedAppointment?.status === 'CONFIRMED'"
+            class="modal-btn cancel-appointment-btn"
+            @click="cancelAppointment(selectedAppointment.id)"
           >
-            开始咨询
+            取消预约
           </button>
         </view>
       </view>
@@ -219,6 +213,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { counselorAPI } from '@/utils/api.js'
 
 // 过滤选项
 const filterOptions = [
@@ -235,87 +230,17 @@ const showDetailModal = ref(false)
 const selectedAppointment = ref(null)
 
 // 模拟预约数据
-const appointments = ref([
-  {
-    id: 1,
-    userName: '小王',
-    userAge: 25,
-    userGender: '女',
-    userPhone: '138****5678',
-    userAvatar: '',
-    date: '2025-08-02',
-    time: '14:00-15:00',
-    consultationType: '焦虑情绪',
-    duration: 60,
-    method: '视频咨询',
-    status: 'pending',
-    problemDescription: '最近工作压力很大，经常失眠，情绪低落，希望能得到专业的心理指导。',
-    testResults: [
-      {
-        id: 1,
-        testName: 'SAS焦虑自评量表',
-        date: '2025-07-30',
-        score: 65,
-        level: 'moderate',
-        interpretation: '中度焦虑'
-      },
-      {
-        id: 2,
-        testName: 'SDS抑郁自评量表',
-        date: '2025-07-29',
-        score: 58,
-        level: 'mild',
-        interpretation: '轻度抑郁'
-      }
-    ]
-  },
-  {
-    id: 2,
-    userName: '李小姐',
-    userAge: 30,
-    userGender: '女',
-    userPhone: '139****1234',
-    userAvatar: '',
-    date: '2025-08-02',
-    time: '16:00-17:00',
-    consultationType: '情感关系',
-    duration: 60,
-    method: '面对面咨询',
-    status: 'confirmed',
-    problemDescription: '与伴侣关系出现问题，沟通困难，需要情感指导。',
-    testResults: []
-  },
-  {
-    id: 3,
-    userName: '张先生',
-    userAge: 28,
-    userGender: '男',
-    userPhone: '137****9876',
-    userAvatar: '',
-    date: '2025-08-01',
-    time: '10:00-11:00',
-    consultationType: '职场压力',
-    duration: 60,
-    method: '电话咨询',
-    status: 'completed',
-    problemDescription: '职场人际关系复杂，工作压力大，需要调整心态。',
-    testResults: [
-      {
-        id: 3,
-        testName: 'SCL-90症状自评量表',
-        date: '2025-07-28',
-        score: 72,
-        level: 'moderate',
-        interpretation: '中度心理症状'
-      }
-    ]
-  }
-])
+const appointments = ref([])
+const loading = ref(false)
 
 // 统计数据
 const todayAppointments = computed(() => {
   const today = new Date().toISOString().split('T')[0]
-  return appointments.value.filter(apt => apt.date === today).length
+  return appointments.value.filter(apt => {
+    if (!apt.startTime) return false
+    const appointmentDate = new Date(apt.startTime).toISOString().split('T')[0]
+    return appointmentDate === today
+  }).length
 })
 
 const weekAppointments = computed(() => {
@@ -324,13 +249,14 @@ const weekAppointments = computed(() => {
   const weekEnd = new Date(today.setDate(today.getDate() - today.getDay() + 6))
   
   return appointments.value.filter(apt => {
-    const aptDate = new Date(apt.date)
+    if (!apt.startTime) return false
+    const aptDate = new Date(apt.startTime)
     return aptDate >= weekStart && aptDate <= weekEnd
   }).length
 })
 
 const totalAppointments = computed(() => {
-  return appointments.value.filter(apt => apt.status === 'completed').length
+  return appointments.value.filter(apt => apt.status === 'COMPLETED').length
 })
 
 // 过滤后的预约列表
@@ -338,7 +264,15 @@ const filteredAppointments = computed(() => {
   if (currentFilter.value === 'all') {
     return appointments.value
   }
-  return appointments.value.filter(apt => apt.status === currentFilter.value)
+  // 映射过滤器值到API状态
+  const statusMap = {
+    'pending': 'PENDING',
+    'confirmed': 'CONFIRMED', 
+    'completed': 'COMPLETED',
+    'cancelled': 'CANCELLED'
+  }
+  const apiStatus = statusMap[currentFilter.value] || currentFilter.value.toUpperCase()
+  return appointments.value.filter(apt => apt.status === apiStatus)
 })
 
 onMounted(() => {
@@ -346,8 +280,21 @@ onMounted(() => {
 })
 
 // 加载预约数据
-function loadAppointments() {
-  // 直接加载数据，无动画
+async function loadAppointments() {
+  try {
+    loading.value = true
+    const response = await counselorAPI.listMyAppointments()
+    appointments.value = response || []
+    console.log('咨询师预约列表:', appointments.value)
+  } catch (error) {
+    console.error('获取预约列表失败:', error)
+    uni.showToast({
+      title: '获取预约列表失败',
+      icon: 'none'
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 // 切换过滤器
@@ -364,59 +311,101 @@ function getCurrentFilterLabel() {
 // 获取状态文本
 function getStatusText(status) {
   const statusMap = {
-    pending: '待确认',
-    confirmed: '已确认',
-    completed: '已完成',
-    cancelled: '已取消'
+    'PENDING': '待确认',
+    'CONFIRMED': '已确认',
+    'COMPLETED': '已完成',
+    'CANCELLED': '已取消'
   }
   return statusMap[status] || status
 }
 
+// 格式化时间
+function formatTime(timeStr) {
+  if (!timeStr) return ''
+  const date = new Date(timeStr)
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
+// 格式化日期
+function formatDate(timeStr) {
+  if (!timeStr) return ''
+  const date = new Date(timeStr)
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  return `${month}-${day}`
+}
+
+// 格式化时间段
+function formatTimeRange(startTime, endTime) {
+  if (!startTime || !endTime) return ''
+  return `${formatTime(startTime)}-${formatTime(endTime)}`
+}
+
 // 确认预约
-function confirmAppointment(appointmentId) {
+async function confirmAppointment(appointmentId) {
   uni.showModal({
     title: '确认接诊',
     content: '确定要接诊这个预约吗？',
-    success: (res) => {
-      if (res.confirm) {
-        const appointment = appointments.value.find(apt => apt.id === appointmentId)
-        if (appointment) {
-          appointment.status = 'confirmed'
+    success: async (res) => {
+      if (res) {
+        try {
+          await counselorAPI.confirmMyAppointments(appointmentId)
+          // 更新本地状态
+          const appointment = appointments.value.find(apt => apt.id === appointmentId)
+          if (appointment) {
+            appointment.status = 'CONFIRMED'
+          }
           uni.showToast({
             title: '预约已确认',
             icon: 'success'
           })
           closeDetailModal()
+          // 重新加载数据，确保和后端同步
+          await loadAppointments()
+        } catch (error) {
+          console.error('确认预约失败:', error)
+          uni.showToast({
+            title: '确认失败',
+            icon: 'none'
+          })
         }
       }
     }
   })
 }
-
-// 开始咨询
-function startConsultation(appointmentId) {
+// 取消预约
+function cancelAppointment(appointmentId) {
   uni.showModal({
-    title: '开始咨询',
-    content: '准备开始咨询会话吗？',
-    success: (res) => {
+    title: '取消预约',
+    content: '', // 不要正文内容
+    editable: true,
+    placeholderText: '请输入取消原因', // 只用placeholder
+    success: async (res) => {
       if (res.confirm) {
-        uni.showToast({
-          title: '正在启动咨询...',
-          icon: 'loading',
-          duration: 2000
-        })
-        
-        setTimeout(() => {
+        const reason = res.content || '咨询师取消'
+        try {
+          await counselorAPI.cancelMyAppointments(appointmentId, reason)
+          // 更新本地状态
           const appointment = appointments.value.find(apt => apt.id === appointmentId)
           if (appointment) {
-            appointment.status = 'completed'
-            uni.showToast({
-              title: '咨询已开始',
-              icon: 'success'
-            })
-            closeDetailModal()
+            appointment.status = 'CANCELLED'
           }
-        }, 2000)
+          uni.showToast({
+            title: '预约已取消',
+            icon: 'success'
+          })
+          closeDetailModal()
+          // 重新加载数据
+          await loadAppointments()
+        } catch (error) {
+          console.error('取消预约失败:', error)
+          uni.showToast({
+            title: '取消失败',
+            icon: 'none'
+          })
+        }
       }
     }
   })
@@ -690,14 +679,14 @@ function goCounselorProfile() {
   color: #fff;
 }
 
-.start-btn {
+.cancel-btn {
   background: #ec407a;
   color: #fff;
 }
 
 .detail-btn {
-  background: #f5f5f5;
-  color: #666;
+  background: #f2c912;
+  color: #fff;
 }
 
 /* 底部导航栏样式 */
@@ -1129,12 +1118,30 @@ function goCounselorProfile() {
   opacity: 0.8;
 }
 
-.start-btn {
+.cancel-btn {
   background: #ec407a;
   color: #fff;
 }
 
-.start-btn:active {
+.cancel-btn:active {
   opacity: 0.8;
+}
+
+.cancel-appointment-btn {
+  background: #ff5722;
+  color: #fff;
+}
+
+.cancel-appointment-btn:active {
+  opacity: 0.8;
+}
+
+.cancel-modal-btn {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.cancel-modal-btn:active {
+  background: #e9ecef;
 }
 </style>

@@ -10,7 +10,17 @@ export function goHome() {
     return
   }
   
-  // 简单直接的跳转方式，避免复杂的页面栈操作
+  // 检查个人信息是否完整
+  const storedUserInfo = uni.getStorageSync('userInfo')
+  if (!isUserInfoComplete(storedUserInfo)) {
+    uni.showModal({
+      title: '请先完善个人信息',
+      content: '使用测评功能前，请先完善您的个人资料',
+      showCancel: false,
+      confirmText: '我知道了'
+    })
+    return
+  }
   uni.navigateTo({
     url: '/pages/index/index',
     fail: () => {
@@ -113,6 +123,17 @@ export function goTestResults() {
 
 // 查看我的预约 - 优化版本
 export function goMyAppointments() {
+  // 检查个人信息是否完整
+  const storedUserInfo = uni.getStorageSync('userInfo')
+  if (!isUserInfoComplete(storedUserInfo)) {
+    uni.showModal({
+      title: '请先完善个人信息',
+      content: '使用测评功能前，请先完善您的个人资料',
+      showCancel: false,
+      confirmText: '我知道了'
+    })
+    return
+  }
   if (checkLoginAndShowModal('我的预约')) {
     // 直接跳转，无延迟
     uni.navigateTo({
