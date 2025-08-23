@@ -430,7 +430,7 @@ export const counselorAPI = {
   // 咨询师取消预约并返回取消原因
   cancelMyAppointments(id, reason) {
     return request(`/api/consultant/appointments/${id}`, {
-      method: 'DELETE',
+      method: 'POST',
       data: { reason }
     })
   }

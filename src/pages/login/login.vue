@@ -1,5 +1,18 @@
 <template>
   <view class="login-page">
+  <view class="background-decoration">
+    <!-- 气泡效果 -->
+      <view class="bubbles">
+        <view class="bubble"
+    v-for="(bubble, i) in bubbles"
+    :key="'bubble-' + i"
+    :style="{
+      left: bubble.left,
+      animationDelay: bubble.animationDelay,
+      animationDuration: bubble.animationDuration
+    }"></view>
+      </view>
+    </view>
     <!-- 头部 -->
     <view class="login-header">
       <text class="login-title">手机号快捷登录</text>
@@ -113,7 +126,11 @@ const phoneNumber = ref('')
 const verificationCode = ref('')
 const termsAccepted = ref(false)
 const countdown = ref(0)
-
+const bubbles = Array.from({ length: 13 }).map(() => ({
+  left: Math.random() * 100 + '%',
+  animationDelay: Math.random() * 10 + 's',
+  animationDuration: (Math.random() * 15 + 10) + 's'
+}))
 // 计算属性：是否可以发送验证码
 const canSendCode = computed(() => {
   const phoneRegex = /^1[3-9]\d{9}$/
@@ -397,6 +414,8 @@ async function performLogin() {
 .login-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #ecb198 0%, #e2beeb 50%, #b5d9ee 100%);
+  z-index: 1;
+  position: relative;
 }
 
 .login-header {
@@ -406,7 +425,6 @@ async function performLogin() {
   justify-content: center;
   padding: 44rpx 32rpx 32rpx;
   background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10rpx);
 }
 
 .login-title {
@@ -433,6 +451,7 @@ async function performLogin() {
   border-radius: 8rpx;
   transition: all 0.3s ease;
   cursor: pointer;
+  z-index: 2;
 }
 
 .type-option.active {
@@ -460,6 +479,7 @@ async function performLogin() {
 
 .logo-container {
   text-align: center;
+  z-index:2;
 }
 
 .app-logo {
@@ -485,6 +505,8 @@ async function performLogin() {
 
 .form-section {
   padding: 0 48rpx;
+  position: relative;
+  z-index: 2;
 }
 
 .input-group {
@@ -641,7 +663,7 @@ async function performLogin() {
   font-size: 24rpx;
   padding: 0 32rpx;
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .login-methods {
@@ -665,4 +687,153 @@ async function performLogin() {
 .method-text {
   color: #666;
 }
+/* 气泡效果 */
+.bubbles {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: -1;
+}
+
+.bubble {
+  position: absolute;
+  bottom: -100px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  animation: bubble-rise infinite linear;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.bubble:nth-child(1) {
+  width: 40px;
+  height: 40px;
+}
+
+.bubble:nth-child(2) {
+  width: 20px;
+  height: 20px;
+}
+
+.bubble:nth-child(3) {
+  width: 60px;
+  height: 60px;
+}
+
+.bubble:nth-child(4) {
+  width: 80px;
+  height: 80px;
+}
+
+.bubble:nth-child(5) {
+  width: 20px;
+  height: 20px;
+}
+
+.bubble:nth-child(6) {
+  width: 35px;
+  height: 35px;
+}
+
+.bubble:nth-child(7) {
+  width: 15px;
+  height: 15px;
+}
+
+.bubble:nth-child(8) {
+  width: 50px;
+  height: 50px;
+}
+
+.bubble:nth-child(9) {
+  width: 25px;
+  height: 25px;
+}
+
+.bubble:nth-child(10) {
+  width: 30px;
+  height: 30px;
+}
+
+.bubble:nth-child(11) {
+  width: 45px;
+  height: 45px;
+}
+
+.bubble:nth-child(12) {
+  width: 70px;
+  height: 70px;
+}
+
+.bubble:nth-child(13) {
+  width: 18px;
+  height: 18px;
+}
+
+.bubble:nth-child(14) {
+  width: 55px;
+  height: 55px;
+}
+
+.bubble:nth-child(15) {
+  width: 22px;
+  height: 22px;
+}
+
+.bubble:nth-child(16) {
+  width: 38px;
+  height: 38px;
+}
+
+.bubble:nth-child(17) {
+  width: 65px;
+  height: 65px;
+}
+
+.bubble:nth-child(18) {
+  width: 28px;
+  height: 28px;
+}
+
+.bubble:nth-child(19) {
+  width: 42px;
+  height: 42px;
+}
+
+.bubble:nth-child(20) {
+  width: 33px;
+  height: 33px;
+}
+
+@keyframes bubble-rise {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  95% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.background-decoration {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: -1;
+}
+
 </style>
